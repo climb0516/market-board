@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>汇率 · Market Board</title>
+  <meta name="description" content="港美股折算、美元港币日元欧元兑人民币走势、银行换汇点差对比">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💱</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    // 嵌在 market-board 主页里时（?embed=1）：隐藏自身顶栏，主题由外层控制
+    if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080b0c;
+      --panel: rgba(18,24,26,0.74);
+      --panel-solid: #11171a;
+      --hover: rgba(255,255,255,0.04);
+      --line: rgba(255,255,255,0.07);
+      --line-2: rgba(255,255,255,0.14);
+      --text-1: #ecf1f2;
+      --text-2: #9eabae;
+      --text-3: #64716f;
+      --accent: #2dd4bf;
+      --accent-2: #38bdf8;
+      --grad: linear-gradient(120deg, #34d399 0%, #2dd4bf 45%, #38bdf8 100%);
+      --grid-dot: rgba(255,255,255,0.045);
+      --glow-1: rgba(45,212,191,0.13);
+      --glow-2: rgba(56,189,248,0.09);
+      --up: #f87171;
+      --down: #34d399;
+      --best: #2dd4bf;
+      --shadow: 0 0 0 1px var(--line), 0 12px 32px rgba(0,0,0,0.35);
+      --kbd-bg: rgba(255,255,255,0.06);
+      --input-bg: rgba(255,255,255,0.04);
+    }
+    :root[data-theme="light"] {
+      --bg: #f7fafa;
+      --panel: rgba(255,255,255,0.88);
+      --panel-solid: #ffffff;
+      --hover: rgba(10,40,40,0.035);
+      --line: rgba(10,40,40,0.08);
+      --line-2: rgba(10,40,40,0.16);
+      --text-1: #102022;
+      --text-2: #4f6062;
+      --text-3: #8b9a9b;
+      --accent: #0d9488;
+      --accent-2: #0284c7;
+      --grid-dot: rgba(10,40,40,0.06);
+      --glow-1: rgba(13,148,136,0.08);
+      --glow-2: rgba(2,132,199,0.06);
+      --up: #dc2626;
+      --down: #059669;
+      --best: #0d9488;
+      --shadow: 0 0 0 1px var(--line), 0 10px 28px rgba(10,40,40,0.07);
+      --kbd-bg: rgba(10,40,40,0.05);
+      --input-bg: rgba(10,40,40,0.03);
+    }
+
+    body {
+      background: var(--bg); color: var(--text-1);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(900px 420px at 12% -10%, var(--glow-1), transparent 70%),
+        radial-gradient(800px 400px at 92% -5%, var(--glow-2), transparent 70%),
+        radial-gradient(var(--grid-dot) 1px, transparent 1px) 0 0 / 22px 22px;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    input, select { font: inherit; color: var(--text-1); }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* 顶栏 */
+    .topbar { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      background: color-mix(in srgb, var(--bg) 72%, transparent); border-bottom: 1px solid var(--line); }
+    .topbar-inner { max-width: 1240px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
+    .logo-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--grad); display: grid; place-items: center; font-size: 16px; }
+    .logo small { font-weight: 500; color: var(--text-3); font-size: 12px; margin-left: 2px; }
+    .tabs { display: flex; gap: 4px; background: var(--hover); border: 1px solid var(--line); border-radius: 11px; padding: 3px; }
+    .tab { padding: 6px 14px; border-radius: 8px; color: var(--text-2); font-weight: 600; font-size: 13px; white-space: nowrap; }
+    .tab:hover { color: var(--text-1); }
+    .tab.active { background: var(--panel-solid); color: var(--text-1); box-shadow: 0 0 0 1px var(--line-2); }
+    .spacer { flex: 1; }
+    .updated { font-size: 12px; color: var(--text-3); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+    .icon-btn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); display: grid; place-items: center; color: var(--text-2); flex-shrink: 0; }
+    .icon-btn:hover { color: var(--text-1); border-color: var(--line-2); }
+    .icon-btn.spin svg { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 布局 */
+    .layout { max-width: 1240px; margin: 0 auto; padding: 22px 20px 60px; display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 22px; }
+    .aside { position: sticky; top: 76px; align-self: start; display: flex; flex-direction: column; gap: 14px; }
+    .panel { background: var(--panel); border-radius: 14px; box-shadow: var(--shadow); }
+    .widget { padding: 16px; }
+    .widget h3 { font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 12px; }
+    .hero { margin-bottom: 18px; }
+    .hero h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+    .hero h1 em { font-style: normal; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .hero p { color: var(--text-2); margin-top: 6px; max-width: 760px; }
+    .section-title { font-size: 15px; font-weight: 700; margin: 26px 0 12px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .section-title small { color: var(--text-3); font-weight: 500; font-size: 12px; }
+
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+    .chip:hover { border-color: var(--line-2); color: var(--text-1); }
+    .chip.active { background: var(--text-1); color: var(--bg); border-color: var(--text-1); }
+    .seg { display: inline-flex; background: var(--hover); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+    .seg button { padding: 4px 10px; border-radius: 7px; font-size: 12.5px; color: var(--text-2); font-weight: 500; }
+    .seg button.active { background: var(--panel-solid); color: var(--text-1); box-shadow: 0 0 0 1px var(--line-2); }
+
+    .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .field label { font-size: 12px; color: var(--text-3); font-weight: 500; }
+    .input { display: flex; align-items: center; background: var(--input-bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .input:focus-within { border-color: var(--accent); }
+    .input input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; padding: 10px 12px; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .input { min-height: 46px; }
+    .input select, .input .unit { background: none; border: 0; outline: 0; padding: 0 12px; font-weight: 600; color: var(--text-2); border-left: 1px solid var(--line); align-self: stretch; }
+    .input .unit { display: flex; align-items: center; }
+    select option { background: var(--panel-solid); color: var(--text-1); }
+
+    /* 折算 */
+    .conv { padding: 18px; display: grid; gap: 16px; }
+    .conv > * { min-width: 0; }   /* 防止宽表格把 grid 子项撑出屏幕 */
+    .conv-top { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; align-items: end; }
+    .conv-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .conv-cell { padding: 12px; border-radius: 12px; background: var(--hover); border: 1px solid var(--line); min-width: 0; }
+    .conv-cell .ccy { font-size: 12px; color: var(--text-3); font-weight: 600; display: flex; justify-content: space-between; gap: 6px; }
+    .conv-cell .val { font-size: 19px; font-weight: 800; margin-top: 4px; overflow-wrap: anywhere; letter-spacing: -0.01em; }
+    .conv-cell .rate { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+    .na { color: var(--text-3); font-weight: 500; font-size: 13px; }
+    .hold-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .total { padding: 16px 18px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+    .total .label { font-size: 12px; color: var(--text-2); }
+    .total .big { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+    .total .parts { font-size: 12.5px; color: var(--text-2); margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { font-size: 12px; color: var(--text-3); font-weight: 600; }
+    th:first-child, td:first-child { text-align: left; }
+    tr:last-child td { border-bottom: 0; }
+    .table-wrap { overflow-x: auto; }
+    .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--text-3); }
+    .best { color: var(--best); font-weight: 700; }
+    .tag { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px; background: var(--hover); color: var(--text-3); margin-left: 6px; }
+    .tag.best-tag { background: color-mix(in srgb, var(--best) 15%, transparent); color: var(--best); }
+    .tag.stale { background: color-mix(in srgb, var(--up) 15%, transparent); color: var(--up); }
+
+    /* 行情卡片 */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+    .card { padding: 16px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: box-shadow .2s; }
+    .card:hover { box-shadow: 0 0 0 1px var(--line-2), 0 14px 34px rgba(0,0,0,0.25); }
+    .card-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .pair { font-weight: 700; font-size: 14px; }
+    .pair small { color: var(--text-3); font-weight: 500; font-size: 12px; margin-left: 6px; }
+    .price { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+    .chg { font-size: 12.5px; font-weight: 600; display: flex; gap: 10px; }
+    .sub { font-size: 12px; color: var(--text-3); }
+    .spark { width: 100%; height: 44px; margin-top: 4px; }
+    .peg { margin-top: 6px; }
+    .peg-bar { position: relative; height: 8px; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--down) 50%, transparent), var(--hover) 50%, color-mix(in srgb, var(--up) 50%, transparent)); }
+    .peg-dot { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--text-1); border: 3px solid var(--bg); transform: translate(-50%, -50%); box-shadow: 0 0 0 1px var(--line-2); }
+    .peg-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+    /* 走势图 */
+    .chart-box { padding: 16px 16px 10px; }
+    .chart-tools { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .chart-stats { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 8px; }
+    .chart-stats div { font-size: 12px; color: var(--text-3); }
+    .chart-stats b { display: block; font-size: 17px; color: var(--text-1); font-weight: 700; }
+    .chart-stats b.up { color: var(--up); } .chart-stats b.down { color: var(--down); }
+    .chart { position: relative; }
+    .chart svg { width: 100%; height: 300px; display: block; overflow: visible; }
+    .tip { position: absolute; pointer-events: none; background: var(--panel-solid); box-shadow: var(--shadow); border-radius: 8px; padding: 6px 9px; font-size: 12px; white-space: nowrap; transform: translate(-50%, -110%); display: none; }
+    .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-2); margin-top: 6px; flex-wrap: wrap; }
+    .legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--accent); vertical-align: middle; margin-right: 5px; }
+    .legend i.dash { border-top: 2px dashed var(--accent-2); }
+
+    .note { font-size: 12px; color: var(--text-3); line-height: 1.7; margin-top: 10px; }
+    .mini-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 4px 0; gap: 8px; }
+    .mini-row span:first-child { color: var(--text-2); }
+    .status-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; gap: 8px; color: var(--text-2); }
+    .status-row .ok { color: var(--down); } .status-row .bad { color: var(--up); }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .aside { position: static; }
+    }
+    @media (max-width: 760px) {
+      .topbar-inner { flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
+      .logo small, .updated { display: none; }
+      .tabs { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; }
+      .tabs::-webkit-scrollbar { display: none; }
+      .tab { flex: 1; text-align: center; padding: 6px 8px; }
+      .layout { padding: 16px 16px 50px; }
+      .hero h1 { font-size: 20px; }
+      .conv-top, .hold-grid { grid-template-columns: minmax(0, 1fr); }
+      .conv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+      .chips::-webkit-scrollbar { display: none; }
+      .chart svg { height: 220px; }
+      th, td { padding: 8px; }
+    }
+
+    /* 嵌入模式：只保留子 Tab，背景透明，侧栏不吸顶（iframe 高度随内容撑开，吸顶无意义） */
+    .embed body { min-height: 0; background: transparent; }
+    .embed body::before { display: none; }
+    .embed .topbar { position: static; background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+    .embed .topbar-inner { max-width: none; padding: 0 0 4px; }
+    .embed .logo, .embed .spacer, .embed .updated, .embed .topbar .icon-btn { display: none; }
+    .embed .layout { max-width: none; padding: 14px 0 8px; }
+    .embed .aside { position: static; }
+    @media (max-width: 760px) { .embed .tabs { order: 0; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="logo"><div class="logo-mark">💱</div>FX Board<small>汇率看板</small></div>
+      <nav class="tabs" id="tabs">
+        <button class="tab" data-tab="convert">港美股折算</button>
+        <button class="tab" data-tab="market">行情</button>
+        <button class="tab" data-tab="trend">走势</button>
+        <button class="tab" data-tab="cost">换汇成本</button>
+      </nav>
+      <div class="spacer"></div>
+      <span class="updated"><span class="live-dot"></span><span id="updated">—</span></span>
+      <button class="icon-btn" id="refresh" title="重新读取数据">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+      </button>
+      <a class="icon-btn" href="https://github.com/climb0516/market-board/actions/workflows/scrape.yml" target="_blank" rel="noopener" title="立即抓取（在 GitHub Actions 点 Run workflow）">⚡</a>
+      <button class="icon-btn" id="theme" title="切换主题">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main id="main"></main>
+    <aside class="aside" id="aside"></aside>
+  </div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('fx:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('fx:' + k, JSON.stringify(v)); } catch {} },
+};
+
+const CCYS = ['CNY', 'HKD', 'USD', 'JPY', 'EUR'];
+const NAMES = { CNY: '人民币', HKD: '港币', USD: '美元', JPY: '日元', EUR: '欧元' };
+const SYM = { CNY: '¥', HKD: 'HK$', USD: '$', JPY: '¥', EUR: '€' };
+// 行情 / 走势里展示的货币对：[基础, 计价, 倍数]
+const PAIRS = [
+  ['USD', 'CNY', 1], ['HKD', 'CNY', 1], ['USD', 'HKD', 1],
+  ['JPY', 'CNY', 100], ['EUR', 'CNY', 1], ['USD', 'JPY', 1], ['EUR', 'USD', 1],
+];
+const pairKey = p => `${p[2] > 1 ? p[2] : ''}${p[0]}/${p[1]}`;
+
+const state = {
+  tab: store.get('tab', 'convert'),
+  basis: store.get('basis', 'market'),          // market | cfets
+  amount: store.get('amount', 10000),
+  from: store.get('from', 'HKD'),
+  channel: store.get('channel', 'ref'),
+  hold: store.get('hold', { hk: 500000, us: 50000, cny: 0, base: 'CNY' }),
+  custom: store.get('custom', 0.2),            // 自定义渠道点差 %
+  pair: store.get('pair', 'USD/CNY'),
+  range: store.get('range', 90),
+  calc: store.get('calc', { amount: 10000, from: 'CNY', to: 'USD' }),
+};
+let D = null;
+
+// ── 汇率计算 ──
+const R = () => D.ref.rates;                                  // 1 USD = x
+const cfLatest = () => { const k = Object.keys(D.cfets || {}).sort().pop(); return k ? { date: k, ...D.cfets[k] } : null; };
+function rate(a, b) {                                        // 1 a = x b
+  if (a === b) return 1;
+  if (state.basis === 'cfets') {
+    const cf = cfLatest();
+    if (cf) {
+      if (b === 'CNY' && cf[a]) return cf[a];
+      if (a === 'CNY' && cf[b]) return 1 / cf[b];
+    }
+  }
+  return R()[b] / R()[a];
+}
+const histDays = () => Object.keys(D.history).sort();
+function histRate(day, a, b) {
+  const h = { USD: 1, ...D.history[day] };
+  return h[b] / h[a];
+}
+function dayBefore(n) {                                      // n 天前（或更早）最近的一个历史日
+  const days = histDays(), t = new Date(days[days.length - 1]);
+  t.setDate(t.getDate() - n);
+  const iso = t.toISOString().slice(0, 10);
+  for (let i = days.length - 1; i >= 0; i--) if (days[i] <= iso) return days[i];
+  return days[0];
+}
+function histChange(a, b, n) {                               // 近 n 天 a/b 变化（%），用同一来源比较
+  const days = histDays();
+  const now = histRate(days[days.length - 1], a, b), then = histRate(dayBefore(n), a, b);
+  return (now / then - 1) * 100;
+}
+
+// 银行渠道：把牌价统一成可查表的 {pair:{bid,ask}}；CNH 视同人民币（离岸）
+function bankBook(bank) {
+  const book = {};
+  bank.quotes.forEach(q => { book[q.pair.replace('CNH', 'CNY')] = q; });
+  return book;
+}
+// 在渠道里用 amount 个 a 换 b，返回 {value, rate} 或 null（渠道不支持该币对）
+function exchange(channel, amount, a, b) {
+  if (a === b) return { value: amount, rate: 1 };
+  if (channel === 'ref') { const r = rate(a, b); return { value: amount * r, rate: r }; }
+  if (channel === 'custom') {
+    const r = rate(a, b) * (1 - state.custom / 200);         // 自定义点差：每边收一半
+    return { value: amount * r, rate: r };
+  }
+  const bank = D.banks.find(x => x.id === channel);
+  if (!bank) return null;
+  const book = bankBook(bank);
+  if (book[`${a}/${b}`]) { const r = book[`${a}/${b}`].bid; return { value: amount * r, rate: r }; }   // 卖出 a
+  if (book[`${b}/${a}`]) { const r = 1 / book[`${b}/${a}`].ask; return { value: amount * r, rate: r }; } // 买入 b
+  return null;
+}
+const channels = () => [
+  { id: 'ref', name: state.basis === 'cfets' ? '中间价' : '参考价' },
+  ...D.banks.map(b => ({ id: b.id, name: b.name, stale: b.stale })),
+  { id: 'custom', name: `自定义（点差 ${state.custom}%）` },
+];
+
+// ── 格式化 ──
+function fmtMoney(v, ccy) {
+  const d = ccy === 'JPY' ? 0 : 2;
+  return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function fmtRate(v) {
+  const d = v >= 100 ? 2 : v >= 10 ? 3 : v >= 1 ? 4 : 5;
+  return v.toFixed(d);
+}
+const pct = (v, d = 2) => `${v > 0 ? '+' : ''}${v.toFixed(d)}%`;
+const cls = v => v > 0.0001 ? 'up' : v < -0.0001 ? 'down' : 'muted';
+function ago(iso) {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' 分钟前';
+  if (s < 86400) return Math.round(s / 3600) + ' 小时前';
+  return Math.round(s / 86400) + ' 天前';
+}
+function basisSeg() {
+  return `<div class="seg" title="人民币折算口径">
+    <button data-basis="market" class="${state.basis === 'market' ? 'active' : ''}">市场价</button>
+    <button data-basis="cfets" class="${state.basis === 'cfets' ? 'active' : ''}">中间价</button>
+  </div>`;
+}
+const ccyOptions = sel => CCYS.map(c => `<option value="${c}" ${c === sel ? 'selected' : ''}>${c}</option>`).join('');
+
+// ── 视图：港美股折算 ──
+function renderConvert() {
+  const a = state.from, amt = +state.amount || 0;
+  const ch = channels();
+  const cells = CCYS.filter(c => c !== a).map(c => {
+    const r = exchange(state.channel, amt, a, c);
+    return `<div class="conv-cell">
+      <div class="ccy"><span>${c} · ${NAMES[c]}</span></div>
+      ${r ? `<div class="val num">${SYM[c]}${fmtMoney(r.value, c)}</div>
+             <div class="rate num">1 ${a} = ${fmtRate(r.rate)} ${c}</div>`
+          : `<div class="val na">该渠道不支持</div>`}
+    </div>`;
+  }).join('');
+
+  const h = state.hold, base = h.base;
+  const hkV = (+h.hk || 0) * rate('HKD', base), usV = (+h.us || 0) * rate('USD', base), cnV = (+h.cny || 0) * rate('CNY', base);
+  const total = hkV + usV + cnV;
+  // 汇率变动影响：外币本金不变，比较「现在折算」与「N 天前的汇率折算」
+  const impact = [7, 30, 90, 365].map(n => {
+    const old = (+h.hk || 0) * rate('HKD', base) / (1 + histChange('HKD', base, n) / 100)
+              + (+h.us || 0) * rate('USD', base) / (1 + histChange('USD', base, n) / 100)
+              + (+h.cny || 0) * rate('CNY', base) / (1 + histChange('CNY', base, n) / 100);
+    const diff = total - old;
+    return `<tr><td>${n === 365 ? '1 年' : n + ' 天'}前</td>
+      <td class="num">${SYM[base]}${fmtMoney(old, base)}</td>
+      <td class="num ${cls(diff)}">${diff >= 0 ? '+' : '−'}${SYM[base]}${fmtMoney(Math.abs(diff), base)}</td>
+      <td class="num ${cls(diff)}">${old ? pct(diff / old * 100) : '—'}</td>
+      <td class="num">${pct(histChange('HKD', base, n))}</td>
+      <td class="num">${pct(histChange('USD', base, n))}</td></tr>`;
+  }).join('');
+
+  return `
+    <section class="hero">
+      <h1>港美股<em>折算</em></h1>
+      <p>输入港币或美元金额，一次看到折成人民币、日元、欧元的结果；也可以选某家银行的实际买卖价，或者填你券商的点差。</p>
+    </section>
+    <div class="panel conv">
+      <div class="conv-top">
+        <div class="field"><label>金额</label>
+          <div class="input"><input id="amount" type="text" inputmode="decimal" value="${esc(state.amount)}"><select id="from">${ccyOptions(a)}</select></div>
+        </div>
+        <div class="field"><label>按哪个价格折算</label>
+          <div class="input"><select id="channel" style="flex:1;border-left:0;padding:11px 12px">${ch.map(c =>
+            `<option value="${c.id}" ${c.id === state.channel ? 'selected' : ''}>${esc(c.name)}${c.stale ? '（旧数据）' : ''}</option>`).join('')}</select></div>
+        </div>
+      </div>
+      <div class="conv-grid">${cells}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="sub">人民币口径：市场价 = 中行现汇买卖中值；中间价 = 外汇交易中心每日 9:15 公布的官方基准</span>${basisSeg()}
+      </div>
+    </div>
+
+    <h2 class="section-title">持仓折算<small>只保存在本机浏览器</small></h2>
+    <div class="panel conv">
+      <div class="hold-grid">
+        <div class="field"><label>港股市值</label><div class="input"><input id="h-hk" type="text" inputmode="decimal" value="${esc(h.hk)}"><span class="unit">HKD</span></div></div>
+        <div class="field"><label>美股市值</label><div class="input"><input id="h-us" type="text" inputmode="decimal" value="${esc(h.us)}"><span class="unit">USD</span></div></div>
+        <div class="field"><label>人民币现金</label><div class="input"><input id="h-cny" type="text" inputmode="decimal" value="${esc(h.cny)}"><span class="unit">CNY</span></div></div>
+      </div>
+      <div class="total">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="label">合计（按${state.basis === 'cfets' ? '中间价' : '市场参考价'}）</span>
+          <div class="seg">${['CNY', 'HKD', 'USD'].map(c => `<button data-base="${c}" class="${c === base ? 'active' : ''}">${c}</button>`).join('')}</div>
+        </div>
+        <div class="big num">${SYM[base]}${fmtMoney(total, base)}</div>
+        <div class="parts num"><span>港股 ${SYM[base]}${fmtMoney(hkV, base)}</span><span>美股 ${SYM[base]}${fmtMoney(usV, base)}</span>${cnV ? `<span>现金 ${SYM[base]}${fmtMoney(cnV, base)}</span>` : ''}</div>
+      </div>
+      <div>
+        <div class="sub" style="margin-bottom:6px">汇率变动对这笔持仓的影响（假设外币市值不变，只看汇率）</div>
+        <div class="table-wrap"><table>
+          <tr><th>对比</th><th>当时折算</th><th>汇率带来的差额</th><th>幅度</th><th>HKD/${base}</th><th>USD/${base}</th></tr>
+          ${impact}
+        </table></div>
+      </div>
+    </div>
+    <p class="note">历史对比用欧洲央行每日汇率计算变化幅度，避免不同来源混用造成的误差。红色表示你的持仓因汇率变化而增值，绿色表示缩水。</p>
+  `;
+}
+
+// ── 视图：行情 ──
+function spark(a, b, n = 30) {
+  const days = histDays().filter(d => d >= dayBefore(n));
+  const v = days.map(d => histRate(d, a, b));
+  const min = Math.min(...v), max = Math.max(...v), W = 200, H = 44;
+  const pts = v.map((x, i) => `${(i / (v.length - 1) * W).toFixed(1)},${(H - 4 - (x - min) / ((max - min) || 1) * (H - 8)).toFixed(1)}`).join(' ');
+  const c = v[v.length - 1] >= v[0] ? 'var(--up)' : 'var(--down)';
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function renderMarket() {
+  const cf = cfLatest();
+  const boc = D.banks.find(b => b.id === 'boc');
+  const cards = PAIRS.map(p => {
+    const [a, b, m] = p, key = pairKey(p);
+    const now = rate(a, b) * m;
+    const d1 = histChange(a, b, 1), d30 = histChange(a, b, 30);
+    let extra = '';
+    if (key === 'USD/HKD') {
+      const pos = Math.min(100, Math.max(0, (now - 7.75) / 0.1 * 100));
+      extra = `<div class="peg"><div class="peg-bar"><span class="peg-dot" style="left:${pos}%"></span></div>
+        <div class="peg-scale"><span>7.75 强方兑换保证</span><span>7.85 弱方</span></div></div>`;
+    }
+    if (b === 'CNY' && cf && cf[a]) {
+      const ref = boc && bankBook(boc)[`${a}/CNY`]?.ref;
+      // 中行折算价通常等于中间价，不同时才显示
+      const showRef = ref && Math.abs(ref - cf[a]) / cf[a] > 0.0001;
+      extra = `<div class="sub num">中间价 ${fmtRate(cf[a] * m)}${showRef ? ` · 中行折算价 ${fmtRate(ref * m)}` : ''}</div>`;
+    }
+    const src = a === 'USD' ? D.ref.source[b] : b === 'USD' ? D.ref.source[a] : '交叉换算';
+    return `<div class="panel card" data-goto="${a}/${b}">
+      <div class="card-head"><span class="pair">${key}<small>${NAMES[a]}/${NAMES[b]}</small></span><span class="sub">${esc(src || '')}</span></div>
+      <div class="price num">${fmtRate(now)}</div>
+      <div class="chg num"><span class="${cls(d1)}">日 ${pct(d1)}</span><span class="${cls(d30)}">30 天 ${pct(d30)}</span></div>
+      ${extra}
+      ${spark(a, b)}
+    </div>`;
+  }).join('');
+  return `
+    <section class="hero">
+      <h1>主要汇率<em>行情</em></h1>
+      <p>港美股折算最常用的三组：USD/HKD、USD/CNY、HKD/CNY，另有日元、欧元。点击卡片看走势。</p>
+    </section>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">${basisSeg()}</div>
+    <div class="cards">${cards}</div>
+    <p class="note">当前值：港币、日元、欧元取中银香港买卖中值，人民币按所选口径；涨跌幅与迷你走势用欧洲央行每日汇率（工作日更新）。红涨绿跌，「涨」指基础货币（斜杠前）相对升值。</p>
+  `;
+}
+
+// ── 视图：走势 ──
+function renderTrend() {
+  const [a, b] = state.pair.split('/');
+  const p = PAIRS.find(x => x[0] === a && x[1] === b) || PAIRS[0];
+  const m = p[2];
+  const days = histDays().filter(d => d >= dayBefore(state.range));
+  const pts = days.map(d => ({ d, v: histRate(d, a, b) * m }));
+  const cfPts = b === 'CNY' ? Object.keys(D.cfets).sort().filter(d => d >= days[0] && D.cfets[d][a]).map(d => ({ d, v: D.cfets[d][a] * m })) : [];
+  const vals = pts.map(x => x.v).concat(cfPts.map(x => x.v));
+  const hi = Math.max(...pts.map(x => x.v)), lo = Math.min(...pts.map(x => x.v));
+  const chg = (pts[pts.length - 1].v / pts[0].v - 1) * 100;
+  return `
+    <section class="hero">
+      <h1>汇率<em>走势</em></h1>
+      <p>欧洲央行每日参考汇率，最长 1 年；人民币货币对叠加外汇交易中心中间价（虚线，随抓取逐日积累）。</p>
+    </section>
+    <div class="panel chart-box">
+      <div class="chart-tools">
+        <div class="chips">${PAIRS.map(x => `<button class="chip ${x[0] === a && x[1] === b ? 'active' : ''}" data-pair="${x[0]}/${x[1]}">${pairKey(x)}</button>`).join('')}</div>
+        <div class="seg">${[[30, '1 月'], [90, '3 月'], [180, '6 月'], [365, '1 年']].map(([n, l]) => `<button data-range="${n}" class="${state.range === n ? 'active' : ''}">${l}</button>`).join('')}</div>
+      </div>
+      <div class="chart-stats num">
+        <div>最新<b>${fmtRate(pts[pts.length - 1].v)}</b></div>
+        <div>区间涨跌<b class="${cls(chg)}">${pct(chg)}</b></div>
+        <div>最高<b>${fmtRate(hi)}</b></div>
+        <div>最低<b>${fmtRate(lo)}</b></div>
+        <div>振幅<b>${((hi - lo) / lo * 100).toFixed(2)}%</b></div>
+      </div>
+      <div class="chart" id="chart">${chartSVG(pts, cfPts, Math.min(...vals), Math.max(...vals))}<div class="tip" id="tip"></div></div>
+      <div class="legend"><span><i></i>${pairKey(p)} 欧洲央行</span>${cfPts.length ? `<span><i class="dash"></i>人民币中间价（${cfPts.length} 天）</span>` : ''}</div>
+    </div>
+  `;
+}
+let CHART = null;
+function chartSVG(pts, cfPts, min, max) {
+  const W = 800, H = 300, L = 8, R2 = 56, T = 10, B = 24;
+  const pad = (max - min) * 0.08 || max * 0.001;
+  min -= pad; max += pad;
+  const t0 = new Date(pts[0].d).getTime(), t1 = new Date(pts[pts.length - 1].d).getTime();
+  const x = d => L + (new Date(d).getTime() - t0) / ((t1 - t0) || 1) * (W - L - R2);
+  const y = v => T + (1 - (v - min) / (max - min)) * (H - T - B);
+  CHART = { pts, cfPts, x, y, W, H };
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.d).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+  const area = `${line}L${x(pts[pts.length - 1].d).toFixed(1)},${H - B}L${x(pts[0].d).toFixed(1)},${H - B}Z`;
+  const cfLine = cfPts.map((p, i) => `${i ? 'L' : 'M'}${x(p.d).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+  const grid = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const v = min + (max - min) * f, yy = y(v);
+    return `<line x1="${L}" x2="${W - R2}" y1="${yy}" y2="${yy}" stroke="var(--line)"/><text x="${W - R2 + 6}" y="${yy + 4}" font-size="11" fill="var(--text-3)">${fmtRate(v)}</text>`;
+  }).join('');
+  const ticks = [0, 0.33, 0.66, 1].map(f => {
+    const p = pts[Math.round(f * (pts.length - 1))];
+    return `<text x="${x(p.d)}" y="${H - 6}" font-size="11" fill="var(--text-3)" text-anchor="${f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}">${p.d.slice(5)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="chart-svg">
+    <defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".25"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    ${grid}${ticks}
+    <path d="${area}" fill="url(#fill)"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    ${cfLine ? `<path d="${cfLine}" fill="none" stroke="var(--accent-2)" stroke-width="2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>` : ''}
+    <line id="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--line-2)" visibility="hidden"/>
+    <circle id="dot" r="4" fill="var(--accent)" stroke="var(--bg)" stroke-width="2" visibility="hidden"/>
+  </svg>`;
+}
+function bindChart() {
+  const box = $('#chart'); if (!box || !CHART) return;
+  const svg = $('#chart-svg'), tip = $('#tip');
+  const move = e => {
+    const r = svg.getBoundingClientRect(), cx = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / r.width * CHART.W;
+    let best = CHART.pts[0];
+    for (const p of CHART.pts) if (Math.abs(CHART.x(p.d) - cx) < Math.abs(CHART.x(best.d) - cx)) best = p;
+    const px = CHART.x(best.d), py = CHART.y(best.v);
+    $('#cross').setAttribute('x1', px); $('#cross').setAttribute('x2', px); $('#cross').setAttribute('visibility', 'visible');
+    $('#dot').setAttribute('cx', px); $('#dot').setAttribute('cy', py); $('#dot').setAttribute('visibility', 'visible');
+    const cf = CHART.cfPts.find(p => p.d === best.d);
+    tip.innerHTML = `${best.d}<br><b class="num">${fmtRate(best.v)}</b>${cf ? `<br><span class="muted">中间价 ${fmtRate(cf.v)}</span>` : ''}`;
+    tip.style.display = 'block';
+    tip.style.left = (px / CHART.W * r.width) + 'px';
+    tip.style.top = (py / CHART.H * r.height) + 'px';
+  };
+  const leave = () => { tip.style.display = 'none'; $('#cross').setAttribute('visibility', 'hidden'); $('#dot').setAttribute('visibility', 'hidden'); };
+  box.addEventListener('mousemove', move); box.addEventListener('touchmove', move, { passive: true });
+  box.addEventListener('mouseleave', leave); box.addEventListener('touchend', leave);
+}
+
+// ── 视图：换汇成本 ──
+function renderCost() {
+  const groups = {};
+  D.banks.forEach(bank => bank.quotes.forEach(q => (groups[q.pair] ||= []).push({ bank, q })));
+  const order = ['USD/CNY', 'HKD/CNY', 'JPY/CNY', 'EUR/CNY', 'USD/HKD', 'USD/CNH', 'USD/JPY', 'EUR/USD'];
+  const tables = order.filter(p => groups[p]).map(p => {
+    const rows = groups[p], minSpread = Math.min(...rows.map(r => r.q.spread));
+    const [a, b] = p.split('/');
+    const m = a === 'JPY' ? 100 : 1;
+    return `<tr class="grp"><td colspan="5" style="padding-top:16px"><b>${m > 1 ? '100' : ''}${p}</b> <span class="muted" style="font-size:12px">${NAMES[a] || a} / ${NAMES[b] || (b === 'CNH' ? '离岸人民币' : b)}</span></td></tr>` +
+      rows.map(({ bank, q }) => `<tr>
+        <td>${esc(bank.name)}${bank.stale ? '<span class="tag stale">旧数据</span>' : ''}${q.spread === minSpread && rows.length > 1 ? '<span class="tag best-tag">最低</span>' : ''}</td>
+        <td class="num">${fmtRate(q.bid * m)}</td><td class="num">${fmtRate(q.ask * m)}</td>
+        <td class="num ${q.spread === minSpread && rows.length > 1 ? 'best' : ''}">${q.spread.toFixed(3)}%</td>
+        <td class="muted">${esc(bank.time.split(' ').pop())}</td></tr>`).join('');
+  }).join('');
+
+  const c = state.calc;
+  const amt = +c.amount || 0;
+  const ideal = amt * rate(c.from, c.to);
+  const res = channels().filter(x => x.id !== 'ref').map(ch => ({ ch, r: exchange(ch.id, amt, c.from, c.to) })).filter(x => x.r);
+  const bestV = Math.max(...res.map(x => x.r.value));
+  const calcRows = res.sort((x, y) => y.r.value - x.r.value).map(({ ch, r }) => {
+    const lose = ideal - r.value;
+    return `<tr><td>${esc(ch.name)}${ch.stale ? '<span class="tag stale">旧数据</span>' : ''}${r.value === bestV ? '<span class="tag best-tag">最划算</span>' : ''}</td>
+      <td class="num">${fmtRate(r.rate)}</td>
+      <td class="num ${r.value === bestV ? 'best' : ''}">${SYM[c.to]}${fmtMoney(r.value, c.to)}</td>
+      <td class="num down">−${SYM[c.to]}${fmtMoney(Math.max(0, lose), c.to)}</td>
+      <td class="num muted">${ideal ? (lose / ideal * 100).toFixed(3) + '%' : '—'}</td></tr>`;
+  }).join('');
+
+  return `
+    <section class="hero">
+      <h1>换汇<em>成本</em></h1>
+      <p>点差 =（卖出价 − 买入价）÷ 中值，越低越划算。内地银行取「现汇」价（账户间换汇），中银香港为客户买卖价。</p>
+    </section>
+    <div class="panel conv">
+      <div class="conv-top" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr)">
+        <div class="field"><label>我有</label><div class="input"><input id="c-amount" type="text" inputmode="decimal" value="${esc(c.amount)}"><select id="c-from">${ccyOptions(c.from)}</select></div></div>
+        <div class="field"><label>换成</label><div class="input"><select id="c-to" style="flex:1;border-left:0;padding:11px 12px">${ccyOptions(c.to)}</select></div></div>
+        <div class="field"><label>自定义渠道点差 %（如券商）</label><div class="input"><input id="custom" type="text" inputmode="decimal" value="${esc(state.custom)}"><span class="unit">%</span></div></div>
+      </div>
+      <div class="sub num">按${state.basis === 'cfets' ? '中间价' : '参考价'}理论可得 ${SYM[c.to]}${fmtMoney(ideal, c.to)}（1 ${c.from} = ${fmtRate(rate(c.from, c.to))} ${c.to}）</div>
+      <div class="table-wrap"><table>
+        <tr><th>渠道</th><th>成交汇率</th><th>到手</th><th>比参考价少</th><th>成本</th></tr>
+        ${calcRows || '<tr><td colspan="5" class="muted">没有渠道支持这个币对</td></tr>'}
+      </table></div>
+    </div>
+    <h2 class="section-title">银行牌价与点差<small>买入 = 银行从你手里买外币的价格；卖出 = 你向银行买外币的价格</small></h2>
+    <div class="panel"><div class="table-wrap"><table>
+      <tr><th>渠道</th><th>买入</th><th>卖出</th><th>点差</th><th>牌价时间</th></tr>
+      ${tables}
+    </table></div></div>
+    <p class="note">牌价仅供参考，实际成交以银行 / 券商为准；部分银行对大额、网银或贵宾客户有汇率优惠，也可能另收手续费。内地个人每年购汇额度 5 万美元。</p>
+  `;
+}
+
+// ── 侧栏 ──
+function renderAside() {
+  const usdhkd = rate('USD', 'HKD');
+  const pos = Math.min(100, Math.max(0, (usdhkd - 7.75) / 0.1 * 100));
+  const cf = cfLatest();
+  const mk = D.ref.rates.CNY;
+  const gap = cf ? (cf.USD / mk - 1) * 100 : null;
+  const cheapest = ['USD/CNY', 'HKD/CNY'].map(p => {
+    const rows = D.banks.flatMap(b => b.quotes.filter(q => q.pair === p).map(q => ({ b, q })));
+    if (!rows.length) return '';
+    const best = rows.reduce((x, y) => y.q.spread < x.q.spread ? y : x);
+    return `<div class="mini-row"><span>${p}</span><span>${esc(best.b.name)} <b class="num">${best.q.spread.toFixed(3)}%</b></span></div>`;
+  }).join('');
+  return `
+    <div class="panel widget">
+      <h3>🔗 联系汇率</h3>
+      <div class="price num" style="font-size:22px">${fmtRate(usdhkd)}</div>
+      <div class="peg"><div class="peg-bar"><span class="peg-dot" style="left:${pos}%"></span></div>
+      <div class="peg-scale"><span>7.75</span><span>7.80</span><span>7.85</span></div></div>
+      <div class="sub" style="margin-top:8px">${usdhkd >= 7.84 ? '接近弱方兑换保证，金管局可能入市承接港元沽盘' : usdhkd <= 7.76 ? '接近强方兑换保证' : '处于区间内'}</div>
+    </div>
+    <div class="panel widget">
+      <h3>🇨🇳 人民币：中间价 vs 市场价</h3>
+      ${cf ? `<div class="mini-row"><span>中间价（${cf.date.slice(5)}）</span><b class="num">${cf.USD.toFixed(4)}</b></div>` : ''}
+      <div class="mini-row"><span>市场价（中行现汇中值）</span><b class="num">${mk.toFixed(4)}</b></div>
+      ${gap !== null ? `<div class="sub" style="margin-top:6px">市场价比中间价${gap > 0 ? '强' : '弱'} ${Math.abs(gap).toFixed(2)}%，用中间价折算美元资产会${gap > 0 ? '偏高' : '偏低'}</div>` : ''}
+    </div>
+    <div class="panel widget">
+      <h3>💸 今日点差最低</h3>
+      ${cheapest}
+    </div>
+    <div class="panel widget">
+      <h3>📡 数据来源 · ${D.sources.filter(s => s.ok).length}/${D.sources.length} 正常</h3>
+      ${D.sources.map(s => `<div class="status-row"><span>${esc(s.name)}</span><span class="${s.ok ? 'ok' : 'bad'}">${s.ok ? '正常' : '失败 · 沿用旧数据'}</span></div>`).join('')}
+      <div class="note" style="margin-top:8px">每小时自动抓取 · 最近 ${new Date(D.updated).toLocaleString('zh-CN', { hour12: false })}</div>
+    </div>
+  `;
+}
+
+// ── 渲染与交互 ──
+function render() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.tab));
+  $('#updated').textContent = '更新于 ' + ago(D.updated);
+  const focus = document.activeElement?.id, caret = document.activeElement?.selectionStart;
+  $('#main').innerHTML = { convert: renderConvert, market: renderMarket, trend: renderTrend, cost: renderCost }[state.tab]();
+  $('#aside').innerHTML = renderAside();
+  if (state.tab === 'trend') bindChart();
+  if (focus) { const el = document.getElementById(focus); if (el) { el.focus(); try { el.setSelectionRange(caret, caret); } catch {} } }
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-basis],[data-base],[data-pair],[data-range],[data-goto]');
+  if (!t) return;
+  if (t.dataset.tab) { state.tab = t.dataset.tab; store.set('tab', state.tab); window.scrollTo({ top: 0 }); }
+  if (t.dataset.basis) { state.basis = t.dataset.basis; store.set('basis', state.basis); }
+  if (t.dataset.base) { state.hold.base = t.dataset.base; store.set('hold', state.hold); }
+  if (t.dataset.pair) { state.pair = t.dataset.pair; store.set('pair', state.pair); }
+  if (t.dataset.range) { state.range = +t.dataset.range; store.set('range', state.range); }
+  if (t.dataset.goto) { state.pair = t.dataset.goto; state.tab = 'trend'; store.set('pair', state.pair); store.set('tab', 'trend'); window.scrollTo({ top: 0 }); }
+  render();
+});
+document.addEventListener('input', e => {
+  const id = e.target.id, v = e.target.value;
+  if (id === 'amount') { state.amount = v; store.set('amount', v); }
+  else if (id === 'from') { state.from = v; store.set('from', v); }
+  else if (id === 'channel') { state.channel = v; store.set('channel', v); }
+  else if (id.startsWith('h-')) { state.hold[id.slice(2)] = v; store.set('hold', state.hold); }
+  else if (id === 'custom') { state.custom = +v || 0; store.set('custom', state.custom); }
+  else if (id.startsWith('c-')) { state.calc[id.slice(2)] = v; store.set('calc', state.calc); }
+  else return;
+  render();
+});
+
+function applyTheme(t) { document.documentElement.dataset.theme = t; }
+applyTheme(new URLSearchParams(location.search).get('theme') || store.get('theme', 'dark'));
+$('#theme').addEventListener('click', () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t); store.set('theme', t);
+});
+
+async function load() {
+  const btn = $('#refresh');
+  btn.classList.add('spin');
+  try {
+    // no-cache：每次向服务器校验，更新后立刻可见；失败时保留现有内容
+    const d = await fetch('fx.json', { cache: 'no-cache' }).then(r => r.json());
+    D = d;
+    if (!['convert', 'market', 'trend', 'cost'].includes(state.tab)) state.tab = 'convert';
+    if (!D.banks.some(b => b.id === state.channel) && !['ref', 'custom'].includes(state.channel)) state.channel = 'ref';
+    render();
+  } catch (e) {
+    if (!D) $('#main').innerHTML = '<div class="panel widget">数据加载失败，请稍后刷新</div>';
+  } finally { btn.classList.remove('spin'); }
+}
+$('#refresh').addEventListener('click', load);
+load();
+setInterval(load, 10 * 60 * 1000);
+</script>
+</body>
+</html>

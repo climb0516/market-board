@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="referrer" content="no-referrer">
+  <title>油价金价 · Market Board</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛽</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    // 嵌在 market-board 主页里时（?embed=1）：隐藏自身顶栏，主题由外层控制
+    if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0906;
+      --panel: rgba(30,24,14,0.78);
+      --panel-solid: #17130c;
+      --hover: rgba(255,255,255,0.04);
+      --line: rgba(255,255,255,0.07);
+      --line-2: rgba(255,255,255,0.13);
+      --text-1: #f3eee4;
+      --text-2: #b4aa98;
+      --text-3: #7a705f;
+      --accent: #f5b301;
+      --grad: linear-gradient(120deg, #f59e0b 0%, #fbbf24 50%, #fde68a 100%);
+      --grid-dot: rgba(255,255,255,0.045);
+      --glow-1: rgba(245,179,1,0.13);
+      --glow-2: rgba(249,115,22,0.08);
+      --up: #ef4444;      /* 国内习惯：涨红跌绿 */
+      --down: #22c55e;
+      --oil: #fb923c;
+      --kbd-bg: rgba(255,255,255,0.06);
+    }
+    :root[data-theme="light"] {
+      --bg: #fbf8f1;
+      --panel: rgba(255,255,255,0.9);
+      --panel-solid: #ffffff;
+      --hover: rgba(60,40,0,0.035);
+      --line: rgba(60,40,0,0.09);
+      --line-2: rgba(60,40,0,0.16);
+      --text-1: #1f1a10;
+      --text-2: #5f5644;
+      --text-3: #978d7a;
+      --accent: #b45309;
+      --grid-dot: rgba(60,40,0,0.06);
+      --glow-1: rgba(245,179,1,0.10);
+      --glow-2: rgba(249,115,22,0.05);
+      --up: #dc2626;
+      --down: #16a34a;
+      --oil: #ea580c;
+      --kbd-bg: rgba(60,40,0,0.05);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text-1);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(600px 400px at 15% -5%, var(--glow-1), transparent 70%),
+        radial-gradient(700px 500px at 95% 0%, var(--glow-2), transparent 70%),
+        radial-gradient(circle, var(--grid-dot) 1px, transparent 1px) 0 0 / 22px 22px;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, select { font: inherit; color: inherit; }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      backdrop-filter: saturate(180%) blur(18px); -webkit-backdrop-filter: saturate(180%) blur(18px);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; gap: 20px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
+    .logo-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--grad); display: grid; place-items: center; font-size: 15px; box-shadow: 0 0 20px var(--glow-1); }
+    .logo small { font-weight: 500; font-size: 12px; color: var(--text-3); letter-spacing: 0; }
+    .top-right { margin-left: auto; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+    .updated { font-size: 12px; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); animation: pulse 2s infinite; }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } }
+    .icon-btn { width: 34px; height: 34px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; display: grid; place-items: center; color: var(--text-2); flex: none; }
+    .icon-btn:hover { color: var(--text-1); border-color: var(--line-2); }
+    .icon-btn:disabled { cursor: default; opacity: .6; }
+    .icon-btn.spin svg { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Layout ── */
+    .layout { max-width: 1400px; margin: 0 auto; padding: 24px 24px 64px; display: grid; grid-template-columns: 200px minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+    .side { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; scrollbar-width: none; }
+    .side::-webkit-scrollbar { display: none; }
+    .side-title { font-size: 11.5px; color: var(--text-3); padding: 0 10px; margin: 4px 0 8px; letter-spacing: .04em; }
+    .side-group + .side-group { margin-top: 22px; }
+    .nav-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; border: none; background: none; cursor: pointer; text-align: left; color: var(--text-2); font-size: 13.5px; position: relative; }
+    .nav-item:hover { background: var(--hover); color: var(--text-1); }
+    .nav-item.active { background: var(--panel); color: var(--text-1); box-shadow: inset 0 0 0 1px var(--line); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--grad); }
+    .nav-item .count { margin-left: auto; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .sel { width: 100%; padding: 7px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); color: var(--text-1); cursor: pointer; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px; }
+    .chip { font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--text-2); white-space: nowrap; }
+    .chip.on { border-color: var(--accent); color: var(--text-1); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+    /* ── Main ── */
+    .main-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+    .main-head h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+    .main-head h1 span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .main-head p { font-size: 12.5px; color: var(--text-3); margin-top: 4px; }
+    .tabs { display: flex; gap: 2px; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+    .tab { padding: 6px 14px; border-radius: 7px; border: none; background: none; cursor: pointer; font-size: 13px; color: var(--text-3); white-space: nowrap; }
+    .tab:hover { color: var(--text-1); }
+    .tab.active { background: var(--hover); color: var(--text-1); box-shadow: inset 0 0 0 1px var(--line-2); }
+
+    /* 卡片不用 backdrop-filter：卡片多时 Chrome 合成层会丢，部分卡片整块渲染成空白 */
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+    .muted { color: var(--text-3); }
+    .up { color: var(--up); } .down { color: var(--down); }
+    .warn { color: #f59e0b; }
+    .empty { text-align: center; padding: 60px 0; color: var(--text-3); }
+    .loading { padding: 80px 0; text-align: center; color: var(--text-3); }
+    .note { font-size: 12px; color: var(--text-3); margin-top: 10px; line-height: 1.6; }
+    .section-title { font-size: 13px; color: var(--text-3); margin: 24px 0 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .section-title:first-child { margin-top: 0; }
+    .section-title b { color: var(--text-1); font-size: 14.5px; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* ── Hero cards ── */
+    .hero { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .hero.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .kc { padding: 16px 18px; position: relative; overflow: hidden; min-width: 0; }
+    .kc.glow::after { content: ''; position: absolute; inset: 0; background: var(--grad); opacity: .07; pointer-events: none; }
+    .kc .lbl { font-size: 12px; color: var(--text-3); display: flex; justify-content: space-between; gap: 8px; }
+    .kc .big { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.25; margin-top: 4px; }
+    .kc .big small { font-size: 14px; font-weight: 600; color: var(--text-2); margin-left: 3px; }
+    .hero.four .kc .big { font-size: 24px; white-space: nowrap; }
+    .hero.four .kc .big small { font-size: 12px; }
+    .kc .sub { font-size: 12.5px; color: var(--text-2); margin-top: 4px; }
+    .kc .sub2 { font-size: 11.5px; color: var(--text-3); margin-top: 6px; line-height: 1.5; }
+    .pill { font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
+    .pill.up { background: var(--up); color: #fff; } .pill.down { background: var(--down); color: #fff; } .pill.flat { background: var(--text-3); }
+    .tank-ctl { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
+    .tank-ctl .chip { font-size: 11.5px; padding: 2px 8px; }
+
+    /* ── Prices grid ── */
+    .prices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .pc { padding: 12px 14px; }
+    .pc span { font-size: 12px; color: var(--text-3); display: block; }
+    .pc b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .pc small { font-size: 11.5px; }
+
+    /* ── Chart ── */
+    .chart-card { padding: 14px 16px 10px; }
+    .chart-card .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-3); margin-bottom: 6px; flex-wrap: wrap; }
+    .chart-card .hd b { color: var(--text-1); font-size: 14px; }
+    .chart svg { display: block; width: 100%; height: 170px; }
+    .chart .axis { font-size: 10px; fill: var(--text-3); }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+    th { text-align: left; font-weight: 600; font-size: 11.5px; color: var(--text-3); padding: 9px 14px; border-bottom: 1px solid var(--line); }
+    td { padding: 9px 14px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--hover); }
+    tr.me td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+    tr.click { cursor: pointer; }
+    th.r, td.r { text-align: right; }
+    .bar { display: inline-block; height: 6px; border-radius: 3px; background: var(--accent); vertical-align: middle; margin-right: 6px; }
+    .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+
+    /* ── Right widgets ── */
+    .widget { padding: 14px 16px 12px; }
+    .widget + .widget { margin-top: 16px; }
+    .widget-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .widget-head b { font-size: 14px; }
+    .widget-head small { font-size: 11.5px; color: var(--text-3); }
+    .w-row { display: flex; gap: 10px; padding: 5px 0; font-size: 13px; align-items: baseline; }
+    .w-row .k { flex: 1; min-width: 0; color: var(--text-2); }
+    .w-row b { font-variant-numeric: tabular-nums; }
+    .w-row small { color: var(--text-3); font-size: 11px; white-space: nowrap; }
+    .status-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 4px 0; color: var(--text-2); }
+    .status-row .t { margin-left: auto; color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
+    .ok { color: #22c55e; } .bad { color: #ef4444; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 180px minmax(0, 1fr); }
+      .right { display: none; }
+      .hero.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .topbar-inner { padding: 0 14px; gap: 10px; }
+      .logo small, .updated span { display: none; }
+      .layout { grid-template-columns: minmax(0, 1fr); padding: 14px 14px 48px; gap: 14px; }
+      .side { position: static; max-height: none; overflow: visible; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+      .side-group + .side-group { margin-top: 0; }
+      .side-group.views { grid-column: 1 / -1; }
+      .side-group.views .nav-list { display: flex; gap: 6px; }
+      .side-group.views .nav-item { width: auto; border: 1px solid var(--line); padding: 5px 12px; }
+      .nav-item.active::before { display: none; }
+      .nav-item .count { display: none; }
+      .tabs { display: none; }
+      .hero, .hero.four { grid-template-columns: minmax(0, 1fr); }
+      .prices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .two { grid-template-columns: minmax(0, 1fr); }
+      .kc .big { font-size: 26px; }
+    }
+
+    /* 嵌入模式：隐藏顶栏，背景透明，侧栏不吸顶（iframe 高度随内容撑开，吸顶无意义） */
+    .embed { scroll-behavior: auto; }
+    .embed body { min-height: 0; background: transparent; }
+    .embed body::before { display: none; }
+    .embed .topbar { display: none; }
+    .embed .layout { max-width: none; padding: 14px 0 8px; }
+    .embed .side { position: static; max-height: none; overflow: visible; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="logo" href="#"><span class="logo-mark">⛽</span>OilGold <small>油价与金价</small></a>
+      <div class="top-right">
+        <div class="updated"><i class="live-dot"></i><span id="updated">加载中…</span></div>
+        <button class="icon-btn" id="reload" title="重新加载数据" aria-label="重新加载数据">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        </button>
+        <a class="icon-btn" href="https://github.com/climb0516/market-board/actions/workflows/scrape.yml" target="_blank" rel="noopener noreferrer" title="立即抓取（跳转 GitHub Actions）" aria-label="立即抓取（跳转 GitHub Actions）">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+        </a>
+        <button class="icon-btn" id="theme" title="切换主题" aria-label="切换主题">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="side">
+      <div class="side-group views">
+        <div class="side-title">看板</div>
+        <div class="nav-list">
+          <button class="nav-item" data-view="oil">⛽ 油价</button>
+          <button class="nav-item" data-view="gold">🪙 金价</button>
+        </div>
+      </div>
+      <div class="side-group">
+        <div class="side-title">我的省份</div>
+        <select class="sel" id="province"></select>
+      </div>
+      <div class="side-group">
+        <div class="side-title">油号</div>
+        <div class="chips" id="grades"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="main-head">
+        <div>
+          <h1 id="title"><span>油价</span>看板</h1>
+          <p id="subtitle">—</p>
+        </div>
+        <div class="tabs">
+          <button class="tab" data-view="oil">油价</button>
+          <button class="tab" data-view="gold">金价</button>
+        </div>
+      </div>
+      <div id="content"><div class="loading">正在加载…</div></div>
+    </main>
+
+    <aside class="side right">
+      <div class="card widget">
+        <div class="widget-head"><b>⛽ 油价速览</b><small id="w-prov"></small></div>
+        <div id="w-oil"></div>
+      </div>
+      <div class="card widget">
+        <div class="widget-head"><b>🪙 金价速览</b><small>元/克</small></div>
+        <div id="w-gold"></div>
+      </div>
+      <div class="card widget">
+        <div class="widget-head"><b>📡 来源状态</b><small id="w-ok"></small></div>
+        <div id="w-status"></div>
+      </div>
+    </aside>
+  </div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get: (k, d) => { try { return JSON.parse(localStorage.getItem('og.' + k)) ?? d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem('og.' + k, JSON.stringify(v)); } catch {} },
+};
+
+const NATIONAL = '全国均价';
+const GRADES = [['v92', '92#'], ['v95', '95#'], ['v98', '98#'], ['v0', '0# 柴油']];
+const TANKS = [40, 50, 60, 70];
+const WEEKDAY = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+const state = {
+  data: null,
+  view: ['oil', 'gold'].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get('view', 'oil'),
+  province: store.get('province', NATIONAL),
+  grade: store.get('grade', 'v92'),
+  tank: store.get('tank', 50),
+};
+
+// ── 主题 ──
+const applyTheme = t => document.documentElement.dataset.theme = t;
+applyTheme(new URLSearchParams(location.search).get('theme') || store.get('theme', 'dark'));
+$('#theme').onclick = () => {
+  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(t); store.set('theme', t);
+};
+
+// ── 工具 ──
+const f2 = (v, n = 2) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: n, maximumFractionDigits: n });
+const sign = (v, n = 2) => v == null ? '—' : (v > 0 ? '+' : '') + f2(v, n);
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'muted';
+const md = s => `${+s.slice(5, 7)}/${+s.slice(8, 10)}`;
+const wd = s => WEEKDAY[new Date(s + 'T00:00:00+08:00').getDay()];
+const gradeName = g => (GRADES.find(x => x[0] === g) || GRADES[0])[1];
+
+function provData() {
+  const o = state.data.oil;
+  if (state.province === NATIONAL || !o.provinces[state.province]) return { name: NATIONAL, ...o.national, hist: nationalHist() };
+  return { name: state.province, ...o.provinces[state.province] };
+}
+
+// 全国均价走势：按日期把各省历史求平均（hist 每项 [date, v92, v95, v0]）
+function nationalHist() {
+  const by = {};
+  Object.values(state.data.oil.provinces).forEach(p => (p.hist || []).forEach(h => (by[h[0]] ||= []).push(h)));
+  return Object.entries(by).filter(([, rows]) => rows.length >= 10).sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([d, rows]) => [d, ...[1, 2, 3].map(i => +(rows.reduce((s, r) => s + r[i], 0) / rows.length).toFixed(2))]);
+}
+
+// 每升变动：吨价变动 × 历次调价拟合的换算系数（汽油、柴油密度不同，各用各的系数）
+const perLiter = (ton, diesel) => ton == null ? null : ton * (diesel ? state.data.oil.estimate.per_liter_diesel : state.data.oil.estimate.per_liter);
+// 当前选中油号的本轮预计每升变动
+const gradeDelta = e => state.grade === 'v0' ? perLiter(e.est_diesel_ton, true) : perLiter(e.est_ton);
+
+// 折线图：points = [[date, value], ...]
+function lineChart(points, color, unit = '', digits = 2) {
+  if (!points || points.length < 2) return '<div class="empty" style="padding:40px 0">数据不足</div>';
+  const W = 600, H = 170, P = { l: 6, r: 6, t: 14, b: 18 };
+  const vs = points.map(p => p[1]);
+  const min = Math.min(...vs), max = Math.max(...vs), span = max - min || 1;
+  const x = i => P.l + i / (points.length - 1) * (W - P.l - P.r);
+  const y = v => P.t + (1 - (v - min) / span) * (H - P.t - P.b);
+  const d = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
+  const area = `${d}L${x(points.length - 1).toFixed(1)},${H - P.b}L${P.l},${H - P.b}Z`;
+  const imax = vs.indexOf(max), imin = vs.indexOf(min);
+  const gid = 'g' + Math.random().toString(36).slice(2, 7);
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".25"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#${gid})"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+  </svg>
+  <div class="hd" style="margin:2px 0 0"><span>${esc(points[0][0])} ~ ${esc(points[points.length - 1][0])}</span><span>最高 ${f2(max, digits)}${unit}（${esc(md(points[imax][0]))}）· 最低 ${f2(min, digits)}${unit}（${esc(md(points[imin][0]))}）</span></div></div>`;
+}
+
+// ── 左侧 ──
+function renderSide() {
+  document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
+  const names = Object.keys(state.data.oil.provinces).sort((a, b) => a.localeCompare(b, 'zh'));
+  $('#province').innerHTML = [NATIONAL, ...names].map(n => `<option ${n === state.province ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  $('#grades').innerHTML = GRADES.map(([g, n]) => `<button class="chip ${state.grade === g ? 'on' : ''}" data-grade="${g}">${n}</button>`).join('');
+}
+
+// ── 视图：油价 ──
+function renderOil() {
+  const o = state.data.oil, e = o.estimate || {}, nw = o.next_window || {}, p = provData();
+  const price = p[state.grade];
+  const dl = perLiter(e.est_ton);
+  const gd = gradeDelta(e);
+  const tankDiff = gd != null && e.verdict !== '搁浅' ? gd * state.tank : 0;
+  const pillCls = e.verdict === '上调' ? 'up' : e.verdict === '下调' ? 'down' : 'flat';
+
+  const hero = `<div class="hero">
+    <div class="card kc glow">
+      <div class="lbl"><span>下次调价窗口</span><span>${o.windows_passed && o.windows_passed.length ? `已连续搁浅 ${o.windows_passed.length} 次` : ''}</span></div>
+      <div class="big">${nw.days === 0 ? '今晚' : nw.days}<small>${nw.days === 0 ? '24 时' : '天后'}</small></div>
+      <div class="sub">${esc(md(nw.date))} ${wd(nw.date)} 24 时</div>
+      <div class="sub2">上次调价 ${esc(md(o.last_adj.date))}：汽油 <span class="${cls(o.last_adj.gas_chg)}">${sign(o.last_adj.gas_chg, 0)}</span> 元/吨${nw.holiday_data ? '' : '<br><span class="warn">窗口所在年份的节假日安排还没公布，按周一到周五估算</span>'}</div>
+    </div>
+    <div class="card kc">
+      <div class="lbl"><span>本轮预测（估算）</span><span class="pill ${pillCls}">${esc(e.verdict || '—')}</span></div>
+      <div class="big ${cls(e.est_ton)}">${sign(e.est_ton, 0)}<small>元/吨</small></div>
+      <div class="sub">92# 约 <b class="${cls(dl)}">${sign(dl, 2)}</b> 元/升${e.verdict === '搁浅' ? '（不足 50 元/吨，大概率搁浅）' : ''}</div>
+      <div class="sub2">布伦特均价：上次调价前 ${f2(e.base_avg)} → 本轮 ${f2(e.cur_avg)} 美元<br>回测：方向猜对 ${esc(e.direction_hit)} 次，平均误差 ${e.mae} 元/吨</div>
+    </div>
+    <div class="card kc">
+      <div class="lbl"><span>加满一箱 · ${esc(p.name)} ${gradeName(state.grade)}</span></div>
+      <div class="big ${cls(tankDiff)}">${tankDiff ? sign(tankDiff, 1) : '±0'}<small>元</small></div>
+      <div class="sub">现在加满 ${f2(price * state.tank, 0)} 元 → 调价后约 ${f2((price + (tankDiff ? gd : 0)) * state.tank, 0)} 元</div>
+      <div class="tank-ctl">${TANKS.map(t => `<button class="chip ${state.tank === t ? 'on' : ''}" data-tank="${t}">${t} 升</button>`).join('')}</div>
+    </div>
+  </div>`;
+
+  const prices = `<div class="section-title"><b>${esc(p.name)} 当前油价</b>元/升${p.date ? ` · ${esc(md(p.date))} 起执行` : ''}</div>
+    <div class="prices">${GRADES.map(([g, n]) => {
+      const z = { v92: p.zde92, v95: p.zde95, v0: p.zde0 }[g];
+      return `<div class="card pc" style="${state.grade === g ? 'border-color:var(--accent)' : ''}"><span>${n}</span><b>${f2(p[g])}</b>
+        ${z != null ? `<small class="${cls(z)}"> ${sign(z)}</small>` : ''}</div>`;
+    }).join('')}</div>`;
+
+  const hist = p.hist ? p.hist.slice().reverse().map(h => [h[0], { v92: h[1], v95: h[2], v0: h[3] }[state.grade] ?? h[1]]) : null;
+  const trend = `<div class="two" style="margin-top:14px">
+    <div class="card chart-card"><div class="hd"><b>${esc(p.name)} ${gradeName(state.grade === 'v98' ? 'v92' : state.grade)} 走势</b><span>历次调价</span></div>
+      ${hist ? lineChart(hist, 'var(--oil)', '', 2) : '<div class="empty" style="padding:40px 0">选择一个省份查看走势</div>'}</div>
+    <div class="card chart-card"><div class="hd"><b>布伦特原油</b><span><b class="${cls(o.crude.brent?.chg_pct)}">${f2(o.crude.brent?.price)}</b> 美元 ${sign(o.crude.brent?.chg_pct)}% · WTI ${f2(o.crude.wti?.price)}</span></div>
+      ${lineChart(o.brent_hist, 'var(--accent)', '', 2)}</div>
+  </div>`;
+
+  const bt = Object.fromEntries((e.backtest || []).map(b => [b.date, b.est]));
+  const adj = `<div class="section-title"><b>调价记录</b>汽油 / 柴油每吨涨跌，「估算」是用本站方法回测的结果</div>
+    <div class="card table-wrap"><table><thead><tr><th>日期</th><th class="r">汽油（元/吨）</th><th class="r">柴油（元/吨）</th><th class="r">92# 约（元/升）</th><th class="r">估算</th><th class="r">汽油价（元/吨）</th></tr></thead>
+    <tbody>${o.adjustments.slice(0, 26).map(a => `<tr><td>${esc(a.date)}</td>
+      <td class="r ${cls(a.gas_chg)}">${sign(a.gas_chg, 0)}</td><td class="r ${cls(a.diesel_chg)}">${sign(a.diesel_chg, 0)}</td>
+      <td class="r ${cls(a.gas_chg)}">${sign(perLiter(a.gas_chg), 2)}</td>
+      <td class="r muted">${bt[a.date] != null ? sign(bt[a.date], 0) : '—'}</td><td class="r">${f2(a.gas, 0)}</td></tr>`).join('')}</tbody></table></div>`;
+
+  const provs = Object.entries(state.data.oil.provinces).sort((a, b) => (b[1][state.grade] || 0) - (a[1][state.grade] || 0));
+  const table = `<div class="section-title"><b>各省油价</b>按 ${gradeName(state.grade)} 从高到低 · 点一行设为我的省份</div>
+    <div class="card table-wrap"><table><thead><tr><th>省份</th>${GRADES.map(([, n]) => `<th class="r">${n}</th>`).join('')}<th class="r">上次 92# 涨跌</th></tr></thead>
+    <tbody>${provs.map(([n, v]) => `<tr class="click ${n === state.province ? 'me' : ''}" data-prov="${esc(n)}"><td>${esc(n)}</td>
+      ${GRADES.map(([g]) => `<td class="r" ${g === state.grade ? 'style="font-weight:700"' : ''}>${f2(v[g])}</td>`).join('')}
+      <td class="r ${cls(v.zde92)}">${sign(v.zde92)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="note">调价窗口：每 10 个工作日一次（节假日和调休按国务院安排），当天 24 时生效。预测是粗略估算：比较上次调价前 10 个工作日与之后至今的布伦特均价，换算成元/吨，系数用历次调价回测拟合；官方按三地原油加权计算，且国际油价高于 130 美元或低于 40 美元时有特殊调控，估算可能偏差。各地油价来自东方财富，98# 来自汽油价格网。</p>`;
+  return hero + prices + trend + adj + table;
+}
+
+// ── 视图：金价 ──
+function renderGold() {
+  const g = state.data.gold, q = g.quotes;
+  const au = q.au9999?.price;
+  const kc = (lbl, v, unit, chg, sub) => `<div class="card kc"><div class="lbl"><span>${lbl}</span>${chg != null ? `<b class="${cls(chg)}">${sign(chg)}%</b>` : ''}</div>
+    <div class="big">${v}<small>${unit}</small></div><div class="sub2">${sub || ''}</div></div>`;
+  const hero = `<div class="hero four">
+    ${kc('伦敦金（现货）', f2(q.xau?.price), '美元/盎司', q.xau?.chg_pct, `折合 ${f2(g.xau_cny_g)} 元/克`)}
+    ${kc('上金所黄金 9999', f2(au), '元/克', q.au9999?.chg_pct, '国内金价基准')}
+    ${kc('黄金 T+D', f2(q.autd?.price), '元/克', q.autd?.chg_pct, `COMEX 期金 ${f2(q.gc?.price)} 美元`)}
+    ${kc('美元/离岸人民币', f2(q.usdcnh?.price, 4), '', q.usdcnh?.chg_pct, '影响国内外金价换算')}
+  </div>`;
+
+  const charts = `<div class="two" style="margin-top:14px">
+    <div class="card chart-card"><div class="hd"><b>上金所黄金 9999</b><span>近一年 · 元/克</span></div>${lineChart(g.au_hist, 'var(--accent)', '', 2)}</div>
+    <div class="card chart-card"><div class="hd"><b>伦敦金</b><span>近一年 · 美元/盎司</span></div>${lineChart(g.xau_hist, 'var(--oil)', '', 0)}</div>
+  </div>`;
+
+  const brands = g.brands.filter(b => b.gold);
+  const maxPrem = Math.max(...brands.map(b => b.premium || 0), 1);
+  const brandTable = `<div class="section-title"><b>品牌首饰金价</b>溢价 = 比上金所 9999 贵多少</div>
+    <div class="card table-wrap"><table><thead><tr><th>品牌</th><th class="r">黄金首饰</th><th class="r">今日涨跌</th><th>溢价</th><th class="r">铂金</th><th class="r">金条</th><th class="r">报价日期</th></tr></thead>
+    <tbody>${brands.map(b => `<tr><td>${esc(b.name)}</td><td class="r"><b>${f2(b.gold, 0)}</b></td>
+      <td class="r ${cls(b.gold_chg)}">${b.gold_chg != null ? sign(b.gold_chg, 0) : '—'}</td>
+      <td><span class="bar" style="width:${Math.max(4, (b.premium || 0) / maxPrem * 90)}px"></span>${b.premium != null ? f2(b.premium, 1) + '%' : '—'}</td>
+      <td class="r">${f2(b.platinum, 0)}</td><td class="r">${f2(b.bar, 0)}</td><td class="r muted">${esc(b.date || '')}</td></tr>`).join('')}</tbody></table></div>`;
+
+  const top = brands.filter(b => !/批发/.test(b.name))[0];
+  const bank = g.banks[0];
+  const recycle24 = (g.recycle.find(r => /24K/.test(r.name)) || {}).price;
+  const banks = `<div class="two" style="margin-top:14px">
+    <div class="card"><div class="section-title" style="margin:14px 16px 6px"><b>银行投资金条</b>元/克</div><div class="table-wrap"><table><tbody>
+      ${g.banks.map(b => `<tr><td>${esc(b.name)}</td><td class="r"><b>${f2(b.price)}</b></td><td class="r muted">溢价 ${f2(b.premium, 1)}%</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><div class="section-title" style="margin:14px 16px 6px"><b>黄金回收价</b>元/克</div><div class="table-wrap"><table><tbody>
+      ${g.recycle.map(r => `<tr><td>${esc(r.name)}</td><td class="r"><b>${f2(r.price, 1)}</b></td></tr>`).join('')}</tbody></table></div></div>
+  </div>
+  ${top && bank && recycle24 ? `<div class="card kc" style="margin-top:14px">
+    <div class="lbl"><span>买 10 克，差多少？</span></div>
+    <div class="sub" style="line-height:1.9">买 <b>${esc(top.name)}</b> 首饰 10 克约 <b>${f2(top.gold * 10, 0)}</b> 元，买 <b>${esc(bank.name)}</b> 10 克约 <b>${f2(bank.price * 10, 0)}</b> 元，
+      首饰多花 <b class="up">${f2((top.gold - bank.price) * 10, 0)}</b> 元；按 24K 回收价卖出只能拿回 <b>${f2(recycle24 * 10, 0)}</b> 元，
+      首饰买入到卖出约亏 <b class="up">${f2((1 - recycle24 / top.gold) * 100, 1)}%</b>，金条约亏 <b class="up">${f2((1 - recycle24 / bank.price) * 100, 1)}%</b>。</div></div>` : ''}
+  <p class="note">国际金价、上金所价格、汇率来自东方财富；品牌首饰金价、银行金条价、回收价来自汇率表网（huilvbiao.com）和金价网（jinjia.com.cn），以各品牌门店实际报价为准。首饰另收工费，实际溢价更高。</p>`;
+  return hero + charts + brandTable + banks;
+}
+
+// ── 右侧挂件 ──
+function renderWidgets() {
+  const o = state.data.oil, e = o.estimate || {}, p = provData(), g = state.data.gold;
+  $('#w-prov').textContent = p.name;
+  $('#w-oil').innerHTML = `
+    <div class="w-row"><span class="k">下次调价</span><b>${esc(md(o.next_window.date))}</b><small>${o.next_window.days} 天后</small></div>
+    <div class="w-row"><span class="k">本轮预测</span><b class="${cls(e.est_ton)}">${esc(e.verdict || '—')} ${sign(e.est_ton, 0)}</b><small>元/吨</small></div>
+    ${GRADES.map(([k, n]) => `<div class="w-row"><span class="k">${n}</span><b>${f2(p[k])}</b><small>元/升</small></div>`).join('')}`;
+  const q = g.quotes, brands = g.brands.filter(b => b.gold && !/批发/.test(b.name));
+  const avg = brands.length ? brands.reduce((s, b) => s + b.gold, 0) / brands.length : null;
+  $('#w-gold').innerHTML = `
+    <div class="w-row"><span class="k">上金所 9999</span><b>${f2(q.au9999?.price)}</b><small class="${cls(q.au9999?.chg_pct)}">${sign(q.au9999?.chg_pct)}%</small></div>
+    <div class="w-row"><span class="k">伦敦金折合</span><b>${f2(g.xau_cny_g)}</b><small class="${cls(q.xau?.chg_pct)}">${sign(q.xau?.chg_pct)}%</small></div>
+    <div class="w-row"><span class="k">银行金条最低</span><b>${f2(g.banks[0]?.price)}</b><small>${esc((g.banks[0]?.name || '').replace(/投资金条|金条/, ''))}</small></div>
+    <div class="w-row"><span class="k">品牌首饰均价</span><b>${f2(avg, 0)}</b><small>${brands.length} 家</small></div>`;
+  const { sources } = state.data;
+  $('#w-ok').textContent = `${sources.filter(s => s.ok).length}/${sources.length} 正常`;
+  $('#w-status').innerHTML = sources.map(s => `
+    <div class="status-row" title="${esc(s.error)}">${esc(s.name)}
+      <span class="t">${s.ok ? `<span class="ok">●</span> ${s.count} 条` : `<span class="bad">●</span> 异常`}</span></div>`).join('');
+}
+
+// ── 渲染入口 ──
+function render() {
+  renderSide();
+  renderWidgets();
+  const oil = state.view === 'oil';
+  $('#title').innerHTML = oil ? '<span>油价</span>看板' : '<span>金价</span>看板';
+  const o = state.data.oil, e = o.estimate || {};
+  $('#subtitle').textContent = oil
+    ? `下次调价 ${md(o.next_window.date)}（${o.next_window.days} 天后）· 预计${e.verdict || '—'} ${sign(e.est_ton, 0)} 元/吨`
+    : `上金所 ${f2(state.data.gold.quotes.au9999?.price)} 元/克 · 品牌首饰约贵 ${f2((state.data.gold.brands.find(b => !/批发/.test(b.name)) || {}).premium, 0)}%`;
+  $('#content').innerHTML = oil ? renderOil() : renderGold();
+  $('#updated').textContent = `更新于 ${new Date(state.data.updated).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+}
+
+async function load(isRefresh) {
+  const btn = $('#reload');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.classList.add('spin');
+  try {
+    const res = await fetch('oilgold.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    state.data = await res.json();
+    if (state.province !== NATIONAL && !state.data.oil.provinces[state.province]) state.province = NATIONAL;
+    render();
+    btn.title = '重新加载数据';
+  } catch (e) {
+    // 刷新失败保留已有内容，只有首次加载失败才替换为报错
+    if (!isRefresh || !state.data) {
+      $('#content').innerHTML = `<div class="empty">数据加载失败：${esc(e.message)}<br><small>本地预览需通过 HTTP 服务打开（python3 -m http.server）</small></div>`;
+    }
+    btn.title = '刷新失败，请稍后重试';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spin');
+  }
+}
+
+// ── 事件绑定 ──
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-view],[data-grade],[data-tank],[data-prov]');
+  if (!t || !state.data) return;
+  if (t.dataset.view) { state.view = t.dataset.view; store.set('view', state.view); history.replaceState(null, '', '#' + state.view); }
+  else if (t.dataset.grade) { state.grade = t.dataset.grade; store.set('grade', state.grade); }
+  else if (t.dataset.tank) { state.tank = +t.dataset.tank; store.set('tank', state.tank); }
+  else if (t.dataset.prov) { state.province = t.dataset.prov; store.set('province', state.province); }
+  render();
+});
+$('#province').addEventListener('change', e => { state.province = e.target.value; store.set('province', state.province); if (state.data) render(); });
+$('#reload').onclick = () => load(true);
+
+load(false);
+setInterval(() => load(true), 10 * 60 * 1000);  // 每 10 分钟自动重新读取
+</script>
+</body>
+</html>
