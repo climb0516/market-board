@@ -59,6 +59,7 @@ const S = {
   rankBy: store.get('rankBy', 'gain'),
   watch: store.get('watch', []),
   names: store.get('names', {}),  // 自选的名称缓存（行情还没回来时显示）
+  stockView: store.get('stockView', 'list'),   // 重点股票：list 列表 / card 卡片
   manage: false, io: null,        // 自选管理模式、导入导出面板
   detail: null,                   // 详情弹层 { id, period }
   frames: {},
@@ -177,6 +178,35 @@ function digitsFor(id, v) {
   return undefined;
 }
 
+// ── 股票 logo ──
+// 重点股票用仓库里的 logos/（抓取脚本下载，国内访问稳定）；其他股票用 FinancialModelingPrep 图床在线加载；
+// 都加载失败时保留底下的首字头像
+const HERO_IDS = ['1.000001', '100.HSI', '100.NDX'];
+const LOGO_FAIL = new Set();
+function fmpSymbol(id) {
+  const [m, c] = id.split('.');
+  if (m === '105' || m === '106' || m === '107') return c.replace('_', '-');
+  if (m === '116' || m === '128') return String(+c).padStart(4, '0') + '.HK';
+  if (m === '1') return c + '.SS';
+  return c + (/^(4|8|92)/.test(c) ? '.BJ' : '.SZ');
+}
+function logoHTML(id, name, size) {
+  if (!mktOf(id)) return '';
+  // 除权除息、新股等前缀（XD工商银、N 某某）不当首字
+  const ch = String(name || id.split('.').pop()).replace(/^(XD|XR|DR|\*?ST|N(?=[\u4e00-\u9fa5]))/, '').trim().charAt(0).toUpperCase();
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const remote = `https://financialmodelingprep.com/image-stock/${fmpSymbol(id)}.png`;
+  const local = S.cfgStocks?.has(id);
+  const img = LOGO_FAIL.has(id) ? '' : `<img src="${local ? `logos/${id}.png` : remote}" alt="" loading="lazy" data-logo="${esc(id)}"${local ? ` data-alt="${remote}"` : ''} onerror="logoErr(this)">`;
+  return `<span class="logo-av ${size || ''}" style="--h:${h}"><b>${esc(ch)}</b>${img}</span>`;
+}
+window.logoErr = img => {
+  if (img.dataset.alt) { img.src = img.dataset.alt; img.removeAttribute('data-alt'); return; }
+  LOGO_FAIL.add(img.dataset.logo);
+  img.remove();
+};
+
 // ── 交易状态 ──
 function zoned(tz) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, weekday: 'short', hour: '2-digit', minute: '2-digit' })
@@ -215,19 +245,22 @@ const starBtn = (id, name) => mktOf(id)
   : '';
 
 // ── 迷你分时图 ──
-function sparkSVG(sp, q) {
-  if (!sp || sp.pts.length < 2) return '<svg class="spark" viewBox="0 0 200 40"></svg>';
-  const W = 200, H = 40, vs = sp.pts.map(p => p.v), pre = sp.pre ?? vs[0];
+let sparkSeq = 0;
+function sparkSVG(sp, q, size) {
+  if (!sp || sp.pts.length < 2) return `<div class="spark skel ${size || ''}"></div>`;
+  const W = 200, H = size === 'big' ? 64 : 40, vs = sp.pts.map(p => p.v), pre = sp.pre ?? vs[0];
   const min = Math.min(...vs, pre), max = Math.max(...vs, pre), span = max - min || 1;
   const total = Math.max(sp.slots, sp.pts.length) - 1 || 1;
   const x = i => (i / total * W).toFixed(1), y = v => (H - 3 - (v - min) / span * (H - 6)).toFixed(1);
   const last = q?.price ?? vs[vs.length - 1];
   const c = last >= pre ? 'var(--up)' : 'var(--down)';
   const line = vs.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join('');
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+  const gid = 'sg' + (++sparkSeq);
+  return `<svg class="spark ${size || ''}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".28"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>
     <line x1="0" x2="${W}" y1="${y(pre)}" y2="${y(pre)}" stroke="var(--line-2)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>
-    <path d="${line}L${x(vs.length - 1)},${H}L0,${H}Z" fill="${c}" opacity=".1"/>
-    <path d="${line}" fill="none" stroke="${c}" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+    <path d="${line}L${x(vs.length - 1)},${H}L0,${H}Z" fill="url(#${gid})"/>
+    <path d="${line}" fill="none" stroke="${c}" stroke-width="${size === 'big' ? 2 : 1.5}" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
   </svg>`;
 }
 
@@ -239,11 +272,30 @@ function indexCard(it) {
   const flash = q?.price != null && prev != null && q.price !== prev ? (q.price > prev ? 'flash-up' : 'flash-down') : '';
   const unit = it.unit === '%' ? '%' : '';
   const px = it.unit === '$' ? '$' + fmtPx(q?.price, 0) : fmtPx(q?.price, d) + unit;
-  return `<div class="panel card ${flash}" data-detail="${esc(it.id)}" data-name="${esc(it.name)}">
+  return `<div class="panel card t-${cls(q?.pct)} ${flash}" data-detail="${esc(it.id)}" data-name="${esc(it.name)}">
     <div class="card-head"><span class="card-name">${esc(it.name)}</span><span class="card-st">${st ? esc(st.label) : ''}</span></div>
     <div class="card-px num">${q ? px : '—'}</div>
     <div class="card-chg num"><span class="${cls(q?.chg)}">${fmtChg(q?.chg, d, q?.price)}</span><span class="${cls(q?.pct)}">${fmtPct(q?.pct)}</span></div>
     ${sparkSVG(S.spark[it.id], q)}
+  </div>`;
+}
+// 顶部三大指数
+function heroCard(id) {
+  const it = S.cfg.indices.flatMap(g => g.items).find(x => x.id === id) || { id, name: id, mkt: '24H' };
+  const q = S.q[id], st = mstatus(it.mkt);
+  return `<div class="panel hero-card t-${cls(q?.pct)}" data-detail="${esc(id)}" data-name="${esc(it.name)}">
+    <div class="hc-head"><span class="hc-name">${esc(it.name)}</span><span class="ms ${st.key === 'open' ? 'open' : st.key === 'pre' ? 'pre' : ''}"><i></i>${esc(st.label)}</span></div>
+    <div class="hc-px num">${fmtPx(q?.price)}</div>
+    <div class="hc-chg num"><span class="${cls(q?.chg)}">${fmtChg(q?.chg, undefined, q?.price)}</span><span class="pct-pill ${cls(q?.pct)}">${fmtPct(q?.pct)}</span></div>
+    ${sparkSVG(S.spark[id], q, 'big')}
+  </div>`;
+}
+// 今日异动：重点股票里涨跌幅绝对值最大的几只
+function moverCard(q) {
+  return `<div class="panel mover t-${cls(q.pct)}" data-detail="${esc(q.id)}" data-name="${esc(q.name)}">
+    ${logoHTML(q.id, q.name, 'lg')}
+    <div class="mv-t"><b>${esc(q.name)}</b><small>${mkTag(mktOf(q.id))}${esc(q.code)}</small></div>
+    <div class="mv-p num"><b>${fmtPx(q.price)}</b><span class="pct-pill ${cls(q.pct)}">${fmtPct(q.pct)}</span></div>
   </div>`;
 }
 function renderOverview() {
@@ -252,7 +304,12 @@ function renderOverview() {
     const st = mstatus(m);
     return `<span class="ms ${st.key === 'open' ? 'open' : st.key === 'pre' ? 'pre' : ''}"><i></i>${label} · ${esc(st.label)}<small>${SESS[m].city} ${st.z.hm}</small></span>`;
   }).join('');
-  const groups = cfg.indices.map(g => `<h2 class="section-title">${esc(g.group)}</h2><div class="cards">${g.items.map(indexCard).join('')}</div>`).join('');
+  const groups = cfg.indices.map(g => {
+    const items = g.items.filter(it => !HERO_IDS.includes(it.id));
+    return items.length ? `<h2 class="section-title">${esc(g.group)}</h2><div class="cards">${items.map(indexCard).join('')}</div>` : '';
+  }).join('');
+  const movers = [...S.cfgStocks].map(id => S.q[id]).filter(q => q?.pct != null)
+    .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 8);
 
   // A 股市场宽度：上证 + 深成的上涨 / 下跌 / 平盘家数（深成指返回的是深市全部股票）
   const sh = S.q['1.000001'], sz = S.q['0.399001'];
@@ -265,7 +322,7 @@ function renderOverview() {
   }
   const watch = S.watch.slice(0, 8).map(id => {
     const q = S.q[id];
-    return `<div class="mini-row click" data-detail="${esc(id)}"><span>${mkTag(mktOf(id))}${esc(q?.name || S.names[id] || id)}</span>
+    return `<div class="mini-row click" data-detail="${esc(id)}"><span class="mr-name">${logoHTML(id, q?.name || S.names[id], 'sm')}${esc(q?.name || S.names[id] || id)}</span>
       <span class="num"><b>${fmtPx(q?.price)}</b> <span class="${cls(q?.pct)}">${fmtPct(q?.pct)}</span></span></div>`;
   }).join('');
   const quick = cfg.quick.map(it => {
@@ -276,9 +333,12 @@ function renderOverview() {
 
   $('#view-overview').innerHTML = `
     <section class="hero"><div><h1>全球<em>市场</em></h1><p>A 股、港股、美股与日韩欧主要指数，页面打开时实时刷新。点卡片看分时和 K 线。</p></div></section>
+    <div class="hero-row">${HERO_IDS.map(heroCard).join('')}</div>
     <div class="mstat">${bar}</div>
     <div class="layout">
-      <main>${groups}</main>
+      <main>
+        ${movers.length ? `<h2 class="section-title">今日异动<small>重点股票里涨跌幅最大的 ${movers.length} 只</small></h2><div class="movers">${movers.map(moverCard).join('')}</div>` : ''}
+        ${groups}</main>
       <aside class="aside">
         <div class="panel widget"><h3>📈 A 股市场宽度</h3>${breadth}</div>
         <div class="panel widget"><h3>⭐ 我的自选<small>${S.watch.length ? `<a href="#stocks" data-group="watch">全部 ${S.watch.length} 只 →</a>` : ''}</small></h3>
@@ -319,25 +379,44 @@ function renderStocks() {
       <div class="group" style="display:flex;gap:6px;justify-content:flex-end">
         ${S.io === 'export' ? '<button class="btn primary" data-act="copy">复制</button>' : '<button class="btn primary" data-act="do-import">导入</button>'}
         <button class="btn" data-act="close-io">关闭</button></div></div>` : ''}` : '';
+  const views = [['list', '列表'], ['card', '卡片']]
+    .map(([k, l]) => `<button data-view-mode="${k}" class="${S.stockView === k ? 'active' : ''}">${l}</button>`).join('');
   $('#view-stocks').innerHTML = `
     <section class="hero"><div><h1>重点<em>股票</em></h1><p>美股、港股、A 股各挑了市值大、关注度高的一批；自选从顶部搜索添加。点表头排序，点一行看详情。</p></div>
-      <div class="seg">${segs}</div></section>
+      <div class="hero-tools"><div class="seg">${segs}</div><div class="seg">${views}</div></div></section>
     ${tools}
-    <div class="panel"><div class="table-wrap" id="st-table">${stocksTable()}</div></div>
+    <div id="st-table">${stocksBody()}</div>
     <p class="note">数据来自东方财富，A 股、港股为实时或短时延迟，美股为延迟行情（盘前盘后不含）。市值、成交额为原币种。</p>`;
 }
-function stocksTable() {
+function stockRows() {
   const g = S.stockGroup, ids = stockIds(g);
-  if (!ids.length) return '<div class="empty">还没有自选。在顶部搜索框输入名称或代码，点 ☆ 添加</div>';
   let rows = ids.map((id, i) => ({ id, i, q: S.q[id] || { id, name: S.names[id] || id, code: id.split('.')[1] } }));
   const { key, dir } = S.sort;
   if (key && !(g === 'watch' && S.manage)) {
     rows.sort((a, b) => key === 'name' ? dir * String(a.q.name).localeCompare(String(b.q.name), 'zh')
       : ((a.q[key] ?? -Infinity) - (b.q[key] ?? -Infinity)) * dir);
   }
+  return rows;
+}
+// 管理自选时固定用列表（上移 / 下移按钮在表格里）
+function stocksBody() {
+  if (!stockIds(S.stockGroup).length) return '<div class="panel empty">还没有自选。在顶部搜索框输入名称或代码，点 ☆ 添加</div>';
+  return S.stockView === 'card' && !(S.stockGroup === 'watch' && S.manage) ? stocksCards() : `<div class="panel"><div class="table-wrap">${stocksTable()}</div></div>`;
+}
+function stocksCards() {
+  return `<div class="stock-cards">${stockRows().map(({ id, q }) => `<div class="panel scard t-${cls(q.pct)}" data-detail="${esc(id)}" data-name="${esc(q.name)}">
+    <div class="sc-head">${logoHTML(id, q.name, 'lg')}<div class="nm"><b>${esc(q.name)}</b><small>${mkTag(mktOf(id))}${esc(q.code)}</small></div>${starBtn(id, q.name)}</div>
+    <div class="sc-px num"><b>${fmtPx(q.price)}</b><span class="pct-pill ${cls(q.pct)}">${fmtPct(q.pct)}</span></div>
+    ${sparkSVG(S.spark[id], q)}
+    <div class="sc-foot num"><span>市值 ${fmtBig(q.cap)}</span><span>成交 ${fmtBig(q.amt)}</span></div>
+  </div>`).join('')}</div>`;
+}
+function stocksTable() {
+  const g = S.stockGroup, ids = stockIds(g), rows = stockRows();
+  const { key, dir } = S.sort;
   const head = COLS.map(([k, l, c]) => `<th class="sort ${key === k ? 'sorted' : ''} ${c || ''}" data-sort="${k}">${l}${key === k ? (dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('');
   const body = rows.map(({ id, i, q }) => `<tr class="click" data-detail="${esc(id)}">
-    <td><div class="nm"><b>${mkTag(mktOf(id))}${esc(q.name)}</b><small>${esc(q.code)}${q.ind ? ' · ' + esc(q.ind) : ''}</small></div></td>
+    <td><div class="nm-row">${logoHTML(id, q.name)}<div class="nm"><b>${esc(q.name)}</b><small>${mkTag(mktOf(id))}${esc(q.code)}${q.ind ? ' · ' + esc(q.ind) : ''}</small></div></div></td>
     <td class="num"><b>${fmtPx(q.price)}</b></td>
     <td class="num"><span class="pct-pill ${cls(q.pct)}">${fmtPct(q.pct)}</span></td>
     <td class="num hide-m ${cls(q.chg)}">${fmtChg(q.chg, undefined, q.price)}</td>
@@ -381,13 +460,15 @@ function heatColor(p) {
 }
 function renderSectors() {
   const sec = S.sectors && S.sectors.kind === S.sectorKind ? S.sectors : (S.snap?.sectors?.[S.sectorKind] ? { rows: S.snap.sectors[S.sectorKind], live: false } : null);
-  let heat = '<div class="empty">加载中…</div>', lists = '';
+  let heat = '<div class="heat">' + '<div class="ht skel"></div>'.repeat(24) + '</div>', lists = '';
   const concept = S.sectorKind === 'concept';
   const rows = sec?.rows ? (concept ? sec.rows.filter(r => !CONCEPT_NOISE.test(r.f14)) : sec.rows) : [];
   if (rows.length) {
+    // 按市值从大到小排，前几个占大格（2×2 / 2×1），近似板块地图
     const big = (concept ? rows.slice().sort((a, b) => (b.f20 || 0) - (a.f20 || 0)).slice(0, 60) : rows.filter(r => SW1.has(r.f14)))
-      .sort((a, b) => b.f3 - a.f3);
-    heat = `<div class="heat">${big.map(r => `<div class="ht" style="${heatColor(r.f3)}" title="${esc(r.f14)} 领涨 ${esc(r.f128)}">
+      .sort((a, b) => (b.f20 || 0) - (a.f20 || 0));
+    const [xl, l] = concept ? [4, 12] : [3, 9];
+    heat = `<div class="heat">${big.map((r, i) => `<div class="ht ${i < xl ? 'xl' : i < l ? 'l' : ''}" style="${heatColor(r.f3)}" title="${esc(r.f14)} · 市值 ${fmtBig(r.f20)} · 领涨 ${esc(r.f128)}">
       <b>${esc(r.f14)}</b><span class="num">${fmtPct(r.f3)}</span><small>${esc(r.f128 || '')}</small></div>`).join('')}</div>`;
     // 二、三级行业常常同名同涨幅（电视广播Ⅱ / 电视广播Ⅲ），列表里只留一个
     const seen = new Set();
@@ -404,7 +485,7 @@ function renderSectors() {
   const r = S.ranks && S.ranks.mkt === S.rankMkt && S.ranks.by === S.rankBy ? S.ranks : null;
   const rank = r ? (r.rows.length ? `<table><thead><tr><th>#</th><th style="text-align:left">名称</th><th>最新价</th><th>涨跌幅</th><th class="hide-m">成交额</th><th class="hide-m">总市值</th><th></th></tr></thead><tbody>
     ${r.rows.map((q, i) => `<tr class="click" data-detail="${esc(q.id)}" data-name="${esc(q.name)}"><td class="muted num">${i + 1}</td>
-      <td style="text-align:left"><div class="nm"><b>${esc(q.name)}</b><small>${esc(q.code)}</small></div></td>
+      <td style="text-align:left"><div class="nm-row">${logoHTML(q.id, q.name)}<div class="nm"><b>${esc(q.name)}</b><small>${esc(q.code)}</small></div></div></td>
       <td class="num"><b>${fmtPx(q.price)}</b></td><td class="num"><span class="pct-pill ${cls(q.pct)}">${fmtPct(q.pct)}</span></td>
       <td class="num hide-m">${fmtBig(q.amt)}</td><td class="num hide-m">${fmtBig(q.cap)}</td><td class="ops">${starBtn(q.id, q.name)}</td></tr>`).join('')}</tbody></table>`
     : '<div class="empty">暂无数据</div>') : '<div class="empty">加载中…</div>';
@@ -445,15 +526,60 @@ function mountFrame(name, sub) {
   }
 }
 
-// ── 详情弹层 ──
+// ── 详情：半屏抽屉（电脑右侧滑出，手机底部升起）──
+// 上面固定：名称、价格、行情 / 简介 / 资讯导航；下面整体滚动。各部分单独重画，互不打断滚动位置
 const PERIODS = [['trend', '分时'], ['101', '日K'], ['102', '周K'], ['103', '月K']];
+const SECTIONS = [['quote', '行情'], ['profile', '简介'], ['news', '资讯']];
+const PROFILE_REPORT = { US: 'RPT_USF10_INFO_ORGPROFILE', HK: 'RPT_HKF10_INFO_ORGPROFILE', CN: 'RPT_F10_BASIC_ORGINFO' };
+const profiles = {};     // id → 公司资料（null = 没有），本次打开页面期间缓存
+const isPhone = () => matchMedia('(max-width: 760px)').matches;
+
+// 东方财富 F10 用的证券代码：105.AAPL → AAPL.O、106.BRK_B → BRK_B.N、116.00700 → 00700.HK、1.600519 → 600519.SH
+function secuCode(id) {
+  const [m, c] = id.split('.'), mkt = mktOf(id);
+  if (mkt === 'US') return c + ({ 105: '.O', 106: '.N', 107: '.A' }[m]);
+  if (mkt === 'HK') return c.padStart(5, '0') + '.HK';
+  return c + (m === '1' ? '.SH' : /^(4|8|92)/.test(c) ? '.BJ' : '.SZ');
+}
+async function fetchProfile(id) {
+  const flt = encodeURIComponent(`(SECUCODE="${secuCode(id)}")`);
+  const d = await fetch(`https://datacenter.eastmoney.com/securities/api/data/v1/get?reportName=${PROFILE_REPORT[mktOf(id)]}&columns=ALL&filter=${flt}&pageNumber=1&pageSize=1&source=F10&client=PC`).then(r => r.json());
+  return d?.result?.data?.[0] || null;
+}
+// 资讯按名称搜（去掉 -W、-SW 等后缀），用相关度排序取 20 条：标题里提到公司简称或代码的优先，再按时间倒序取 8 条
+const newsKeyword = name => String(name || '').replace(/-[A-Z]+$/, '').trim();
+const unent = str => { const t = document.createElement('textarea'); t.innerHTML = String(str || '').replace(/<[^>]+>/g, ''); return t.value; };
+async function fetchNews(name, code) {
+  const kw = newsKeyword(name);
+  const core = kw.replace(/(股份|集团|控股|有限公司)+$/, '') || kw;
+  const param = { uid: '', keyword: kw, type: ['cmsArticleWebOld'], client: 'web', clientType: 'web', clientVersion: 'curr',
+    param: { cmsArticleWebOld: { searchScope: 'default', sort: 'default', pageIndex: 1, pageSize: 20, preTag: '', postTag: '' } } };
+  const d = await jsonp(`https://search-api-web.eastmoney.com/search/jsonp?param=${encodeURIComponent(JSON.stringify(param))}`);
+  const rows = (d?.result?.cmsArticleWebOld || []).map(r => ({ ...r, title: unent(r.title), content: unent(r.content) }));
+  const hit = rows.filter(r => [core, code].some(k => k && r.title.includes(k)));
+  return (hit.length >= 4 ? hit : rows).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 8);
+}
+function agoCN(t) {
+  const s = (Date.now() - new Date(String(t).replace(' ', 'T') + '+08:00')) / 1000;
+  if (!isFinite(s)) return '';
+  if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' 分钟前';
+  if (s < 86400) return Math.round(s / 3600) + ' 小时前';
+  if (s < 86400 * 7) return Math.round(s / 86400) + ' 天前';
+  return String(t).slice(0, 10);
+}
+
 async function openDetail(id, name) {
-  S.detail = { id, name, period: store.get('period', 'trend'), data: null };
+  S.detail = { id, name, period: store.get('period', 'trend'), data: null, expand: false, news: undefined };
   $('#modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  $('#sheet').classList.remove('full');
+  if (isPhone()) document.body.style.overflow = 'hidden';
   renderDetail();
-  if (!S.q[id]) { try { Object.assign(S.q, await fetchQuotes([id])); } catch {} renderDetail(); }
   loadDetailChart();
+  if (mktOf(id)) { loadProfile(id); loadNews(id); }
+  if (!S.q[id]) {
+    try { Object.assign(S.q, await fetchQuotes([id])); } catch {}
+    if (S.detail?.id === id) { paintHead(); paintStats(); }
+  }
 }
 function closeDetail() {
   S.detail = null;
@@ -466,37 +592,166 @@ async function loadDetailChart() {
   const { id, period } = d;
   try {
     const data = period === 'trend' ? await fetchSpark(id) : await fetchKline(id, period);
-    if (S.detail?.id === id && S.detail.period === period) { S.detail.data = data; renderDetail(); }
+    if (S.detail?.id === id && S.detail.period === period) { S.detail.data = data; paintChart(); }
   } catch {
-    if (S.detail?.id === id && S.detail.period === period) { S.detail.data = 'error'; renderDetail(); }
+    if (S.detail?.id === id && S.detail.period === period) { S.detail.data = 'error'; paintChart(); }
   }
 }
+async function loadProfile(id) {
+  if (!(id in profiles)) {
+    try { profiles[id] = await fetchProfile(id); }
+    catch { if (S.detail?.id === id) { S.detail.profileErr = true; paintProfile(); } return; }
+  }
+  if (S.detail?.id === id) paintProfile();
+}
+async function loadNews(id) {
+  const name = S.q[id]?.name || S.detail.name || '';
+  try {
+    const news = await fetchNews(name, id.split('.')[1]);
+    if (S.detail?.id === id) { S.detail.news = news; paintNews(); }
+  } catch {
+    if (S.detail?.id === id) { S.detail.news = 'error'; paintNews(); }
+  }
+}
+
 function renderDetail() {
   const d = S.detail;
   if (!d) return;
+  const company = !!mktOf(d.id);
+  $('#sheet').innerHTML = `
+    <div class="sheet-top" id="sheet-top"><div class="grabber"></div><div class="sheet-head" id="sheet-head"></div>
+      ${company ? `<nav class="sheet-nav">${SECTIONS.map(([k, l], i) => `<button data-jump="${k}" class="${i ? '' : 'active'}">${l}</button>`).join('')}</nav>` : '<div style="height:14px"></div>'}
+    </div>
+    <div class="sheet-body" id="sheet-body">
+      <section class="dsec" id="sec-quote">
+        <div class="stats num" id="d-stats"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+          <span class="seg" id="d-periods"></span><span class="muted" style="font-size:12px" id="d-chart-note"></span></div>
+        <div class="kchart" id="kchart"></div>
+      </section>
+      ${company ? '<section class="dsec" id="sec-profile"></section><section class="dsec" id="sec-news"></section>' : ''}
+    </div>`;
+  paintHead(); paintStats(); paintChart();
+  if (company) { paintProfile(); paintNews(); }
+  $('#sheet-body').addEventListener('scroll', spySections, { passive: true });
+}
+function paintHead() {
+  const d = S.detail, box = $('#sheet-head');
+  if (!d || !box) return;
+  const q = S.q[d.id] || {}, mkt = mktOf(d.id), dg = digitsFor(d.id);
+  const sheet = $('#sheet');
+  sheet.classList.remove('t-up', 't-down', 't-muted');
+  sheet.classList.add('t-' + cls(q.pct));
+  box.innerHTML = `${logoHTML(d.id, q.name || d.name, 'xl')}<div class="t">
+      <h2>${esc(q.name || d.name || d.id)}<small>${mkTag(mkt)}${esc(q.code || d.id.split('.').pop())}</small></h2>
+      <div class="sheet-px num"><b>${fmtPx(q.price, dg)}</b><span class="${cls(q.chg)}">${fmtChg(q.chg, dg, q.price)}</span><span class="${cls(q.pct)}">${fmtPct(q.pct)}</span></div>
+    </div>${starBtn(d.id, q.name || d.name)}<button class="star" data-act="close-detail" title="关闭">✕</button>`;
+}
+function paintStats() {
+  const d = S.detail, box = $('#d-stats');
+  if (!d || !box) return;
   const q = S.q[d.id] || {}, mkt = mktOf(d.id), dg = digitsFor(d.id);
   const stats = [
     ['今开', fmtPx(q.open, dg)], ['最高', fmtPx(q.high, dg)], ['最低', fmtPx(q.low, dg)], ['昨收', fmtPx(q.prev, dg)],
     ['成交额', fmtBig(q.amt)], ['总市值', fmtBig(q.cap)], ['市盈率TTM', q.pe ? q.pe.toFixed(2) : '—'], ['市净率', q.pb ? q.pb.toFixed(2) : '—'],
     ['换手率', q.turn != null ? q.turn.toFixed(2) + '%' : '—'], ['成交量', fmtBig(q.vol)], ['行业', esc(q.ind || '—')], ['更新', q.time ? mdhm(q.time) : '—'],
   ].filter(([, v]) => mkt || v !== '—');
+  box.innerHTML = stats.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+}
+function paintChart() {
+  const d = S.detail, box = $('#kchart');
+  if (!d || !box) return;
   let chart;
   if (d.id.startsWith('coinbase.')) chart = '<div class="empty">比特币暂无图表</div>';
   else if (d.data === 'error') chart = '<div class="empty">图表数据加载失败</div>';
-  else if (!d.data) chart = '<div class="empty">加载中…</div>';
-  else chart = d.period === 'trend' ? trendChart(d.data, q) : klineChart(d.data);
-  $('#sheet').innerHTML = `
-    <div class="sheet-head"><div class="t">
-      <h2>${mkTag(mkt)}${esc(q.name || d.name || d.id)}<small>${esc(q.code || d.id.split('.').pop())}</small></h2>
-      <div class="sheet-px num"><b>${fmtPx(q.price, dg)}</b><span class="${cls(q.chg)}">${fmtChg(q.chg, dg, q.price)}</span><span class="${cls(q.pct)}">${fmtPct(q.pct)}</span></div>
-    </div>${starBtn(d.id, q.name || d.name)}<button class="star" data-act="close-detail" title="关闭">✕</button></div>
-    <div class="stats num">${stats.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
-      <span class="seg">${PERIODS.map(([k, l]) => `<button data-period="${k}" class="${d.period === k ? 'active' : ''}">${l}</button>`).join('')}</span>
-      <span class="muted" style="font-size:12px">${d.period === 'trend' ? '当日分时' : '前复权 · 最近 120 根'}</span></div>
-    <div class="kchart" id="kchart">${chart}<div class="tip" id="ktip"></div></div>`;
+  else if (!d.data) chart = '<div class="skel" style="height:300px;border-radius:10px"></div>';
+  else chart = d.period === 'trend' ? trendChart(d.data, S.q[d.id]) : klineChart(d.data);
+  $('#d-periods').innerHTML = PERIODS.map(([k, l]) => `<button data-period="${k}" class="${d.period === k ? 'active' : ''}">${l}</button>`).join('');
+  $('#d-chart-note').textContent = d.period === 'trend' ? '当日分时' : '前复权 · 最近 120 根';
+  box.innerHTML = chart + '<div class="tip" id="ktip"></div>';
   bindChartHover();
 }
+function paintProfile() {
+  const d = S.detail, box = $('#sec-profile');
+  if (!d || !box) return;
+  const p = profiles[d.id];
+  let body;
+  if (d.profileErr && p === undefined) body = '<div class="muted" style="font-size:13px">公司资料暂时取不到，稍后再打开试试</div>';
+  else if (p === undefined) body = '<div class="skel skel-line" style="width:100%"></div>'.repeat(2) + '<div class="skel skel-line" style="width:70%"></div>';
+  else if (!p) body = '<div class="muted" style="font-size:13px">暂无公司简介（ETF、基金等没有这一项）</div>';
+  else {
+    const date = v => (v ? String(v).slice(0, 10) : '');
+    const web = String(p.ORG_WEB || '').trim().split(/[\s;；,，]/)[0];
+    const href = /^https?:\/\//i.test(web) ? web : web ? 'http://' + web : '';
+    const facts = [
+      ['公司全称', esc(p.ORG_NAME), 'wide'], ['英文名', esc(p.ORG_EN_ABBR || p.ORG_NAME_EN), 'wide'],
+      ['所属行业', esc(p.EM2016 || p.BELONG_INDUSTRY)], ['董事长', esc(p.CHAIRMAN)],
+      ['成立日期', date(p.FOUND_DATE)], ['上市日期', date(p.LISTING_DATE)],
+      ['员工人数', p.EMP_NUM ? (+p.EMP_NUM).toLocaleString('en-US') + ' 人' : ''], ['注册地', esc(p.REG_PLACE || p.PROVINCE)],
+      ['官网', href ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(web)}</a>` : '', 'wide'],
+    ].filter(f => f[1]);
+    const intro = String(p.ORG_PROFILE || '').trim();
+    body = `<div class="facts">${facts.map(([k, v, w]) => `<div class="fact ${w || ''}"><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+      ${intro ? `<div class="prose ${d.expand ? '' : 'clamp'}">${esc(intro)}</div>
+        ${intro.length > 120 ? `<button class="more-btn" data-act="expand">${d.expand ? '收起' : '展开全文'}</button>` : ''}` : ''}
+      ${p.MAIN_BUSINESS ? `<div class="prose-h">主营业务</div><div class="prose">${esc(p.MAIN_BUSINESS)}</div>` : ''}`;
+  }
+  box.innerHTML = `<h3>公司简介<small>来源：东方财富 F10</small></h3>${body}`;
+}
+function paintNews() {
+  const d = S.detail, box = $('#sec-news');
+  if (!d || !box) return;
+  const kw = newsKeyword(S.q[d.id]?.name || d.name);
+  let body;
+  if (d.news === undefined) body = '<div class="skel skel-line"></div>'.repeat(4);
+  else if (d.news === 'error') body = '<div class="muted" style="font-size:13px">资讯暂时取不到，稍后再打开试试</div>';
+  else if (!d.news.length) body = '<div class="muted" style="font-size:13px">暂无相关资讯</div>';
+  else body = `<div class="news">${d.news.map(n => {
+    const url = /^https?:\/\//i.test(n.url || '') ? n.url : '';
+    const img = /^https?:\/\//i.test(n.image || '') ? n.image : '';
+    return `<a class="nw" ${url ? `href="${esc(url)}" target="_blank" rel="noopener"` : ''}>
+      <div class="nw-x"><div class="nw-t">${esc(n.title)}</div>${n.content ? `<div class="nw-s">${esc(n.content)}</div>` : ''}
+        <div class="nw-m">${esc(n.mediaName || '')}${n.mediaName ? ' · ' : ''}${esc(agoCN(n.date))}</div></div>
+      ${img ? `<img class="nw-img" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</a>`;
+  }).join('')}</div>`;
+  box.innerHTML = `<h3>相关资讯<small>按「${esc(kw)}」搜索 · 东方财富</small></h3>${body}
+    <a class="news-more" href="https://so.eastmoney.com/news/s?keyword=${encodeURIComponent(kw)}" target="_blank" rel="noopener">更多资讯 →</a>`;
+}
+// 滚动时高亮导航：最后一个顶边已经滚到上方的分区
+function spySections() {
+  const body = $('#sheet-body');
+  if (!body) return;
+  let cur = 'quote';
+  SECTIONS.forEach(([k]) => { const el = $('#sec-' + k); if (el && el.offsetTop - body.scrollTop <= 48) cur = k; });
+  if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4 && $('#sec-news')) cur = 'news';
+  document.querySelectorAll('.sheet-nav button').forEach(b => b.classList.toggle('active', b.dataset.jump === cur));
+}
+// 手机：拖动顶部区域，上拉到全屏，下拉收回或关闭
+(function bindSheetDrag() {
+  const sheet = $('#sheet');
+  let y0 = null, dy = 0;
+  sheet.addEventListener('pointerdown', e => {
+    if (!isPhone() || !e.target.closest('#sheet-top') || e.target.closest('button, a')) return;
+    y0 = e.clientY; dy = 0;
+    sheet.classList.add('dragging');
+    sheet.setPointerCapture(e.pointerId);
+  });
+  sheet.addEventListener('pointermove', e => {
+    if (y0 == null) return;
+    dy = e.clientY - y0;
+    sheet.style.transform = dy > 0 ? `translateY(${dy}px)` : '';
+  });
+  const end = () => {
+    if (y0 == null) return;
+    y0 = null;
+    sheet.classList.remove('dragging');
+    sheet.style.transform = '';
+    if (dy < -40) sheet.classList.add('full');
+    else if (dy > 80) { if (sheet.classList.contains('full')) sheet.classList.remove('full'); else closeDetail(); }
+  };
+  sheet.addEventListener('pointerup', end);
+  sheet.addEventListener('pointercancel', end);
+})();
 let CH = null;   // 当前详情图表的坐标信息，供悬停提示使用
 function trendChart(sp, q) {
   const W = 760, H = 300, L = 6, R = 64, T = 10, B = 22;
@@ -575,7 +830,8 @@ function renderSearch() {
   pop.innerHTML = SR.items.map((it, i) => {
     const qt = S.q[it.id];
     return `<div class="sr ${i === SR.hl ? 'hl' : ''}" data-detail="${esc(it.id)}" data-name="${esc(it.name)}">
-      <div class="nm"><b>${mkTag(it.mkt)}${esc(it.name)}</b><small>${esc(it.code)} · ${esc(it.type)}</small></div>
+      ${logoHTML(it.id, it.name) || '<span class="logo-av" style="--h:220"><b>#</b></span>'}
+      <div class="nm"><b>${esc(it.name)}</b><small>${mkTag(it.mkt)}${esc(it.code)} · ${esc(it.type)}</small></div>
       <div class="px num">${qt ? `${fmtPx(qt.price)}<small class="${cls(qt.pct)}">${fmtPct(qt.pct)}</small>` : ''}</div>
       ${starBtn(it.id, it.name) || '<span style="width:30px"></span>'}</div>`;
   }).join('');
@@ -612,7 +868,7 @@ function pollIds() {
   S.cfg.indices.forEach(g => g.items.forEach(it => ids.add(it.id)));
   S.cfg.quick.forEach(it => ids.add(it.id));
   S.watch.forEach(id => ids.add(id));
-  if (S.tab === 'stocks' && S.stockGroup && S.stockGroup !== 'watch') stockIds(S.stockGroup).forEach(id => ids.add(id));
+  S.cfgStocks.forEach(id => ids.add(id));
   if (S.detail) ids.add(S.detail.id);
   return [...ids];
 }
@@ -637,6 +893,16 @@ async function refreshSparks(force) {
     // 休市的市场只在第一次加载时取一次
     if (!force && S.spark[it.id] && it.mkt !== '24H' && !['open', 'pre'].includes(mstatus(it.mkt).key)) return;
     try { S.spark[it.id] = await fetchSpark(it.id); } catch {}
+  }));
+}
+// 卡片视图的个股分时：只取当前分组；休市的取过一次就不再取
+async function refreshStockSparks() {
+  if (S.tab !== 'stocks' || S.stockView !== 'card') return;
+  const now = Date.now();
+  await Promise.all(stockIds(S.stockGroup).map(async id => {
+    const sp = S.spark[id];
+    if (sp && (now - sp._at < SPARK_EVERY || !['open', 'pre'].includes(mstatus(mktOf(id)).key))) return;
+    try { S.spark[id] = { ...(await fetchSpark(id)), _at: now }; } catch {}
   }));
 }
 let lastSector = 0;
@@ -666,7 +932,7 @@ async function tick(force) {
   try {
     if (!document.hidden || force) {
       await refreshQuotes();
-      await Promise.all([refreshSparks(force), refreshSectors(force)]);
+      await Promise.all([refreshSparks(force), refreshSectors(force), refreshStockSparks()]);
       rerender(true);
     }
   } finally {
@@ -680,19 +946,11 @@ async function tick(force) {
 function rerender(fromTick) {
   const t = S.tab;
   if (t === 'overview') renderOverview();
-  else if (t === 'stocks') { if (fromTick && $('#st-table')) $('#st-table').innerHTML = stocksTable(); else renderStocks(); }
+  else if (t === 'stocks') { if (fromTick && $('#st-table')) $('#st-table').innerHTML = stocksBody(); else renderStocks(); }
   else if (t === 'sectors') renderSectors();
-  if (S.detail) renderDetailHeadOnly(fromTick);
+  // 抽屉只更新报价和指标，不重画图表、简介、资讯（否则滚动位置和悬停提示会被打断）
+  if (S.detail) { paintHead(); paintStats(); }
   if ($('#search-pop').classList.contains('open')) renderSearch();
-}
-// 定时刷新时只更新详情的报价，不重画图表（否则悬停提示会闪）
-function renderDetailHeadOnly(fromTick) {
-  if (!fromTick) { renderDetail(); return; }
-  const q = S.q[S.detail.id];
-  const box = $('#sheet .sheet-px');
-  if (!q || !box) return;
-  const dg = digitsFor(S.detail.id);
-  box.innerHTML = `<b>${fmtPx(q.price, dg)}</b><span class="${cls(q.chg)}">${fmtChg(q.chg, dg, q.price)}</span><span class="${cls(q.pct)}">${fmtPct(q.pct)}</span>`;
 }
 const TABS = ['overview', 'stocks', 'sectors', 'fx', 'oilgold'];
 function route() {
@@ -704,7 +962,7 @@ function route() {
   else {
     rerender();
     if (S.tab === 'sectors') refreshSectors(true).then(() => S.tab === 'sectors' && renderSectors());
-    if (S.tab === 'stocks') refreshQuotes().then(() => S.tab === 'stocks' && rerender(true));
+    if (S.tab === 'stocks') refreshStockSparks().then(() => S.tab === 'stocks' && rerender(true));
   }
 }
 
@@ -712,7 +970,9 @@ function route() {
 document.addEventListener('click', e => {
   const t = e.target;
   const star = t.closest('[data-star]');
-  if (star) { e.stopPropagation(); toggleWatch(star.dataset.star, star.dataset.name); if (S.detail) renderDetail(); return; }
+  if (star) { e.stopPropagation(); toggleWatch(star.dataset.star, star.dataset.name); return; }
+  // 电脑上抽屉开着时，点抽屉外面（顶栏和其他股票除外）就关掉；点到的东西照常响应
+  if (S.detail && !t.closest('#sheet, .topbar, [data-detail]')) closeDetail();
   const mv = t.closest('[data-move]');
   if (mv) {
     const [i, d] = mv.dataset.move.split(':').map(Number), j = i + d;
@@ -720,6 +980,13 @@ document.addEventListener('click', e => {
     return;
   }
   if (t.closest('[data-act="close-detail"]') || t.id === 'modal') { closeDetail(); return; }
+  const jump = t.closest('[data-jump]');
+  if (jump) {
+    if (isPhone()) $('#sheet').classList.add('full');
+    const body = $('#sheet-body'), sec = $('#sec-' + jump.dataset.jump);
+    if (body && sec) body.scrollTo({ top: sec.offsetTop - 4, behavior: 'smooth' });
+    return;
+  }
   const tab = t.closest('[data-tab]');
   if (tab) { location.hash = tab.dataset.tab; return; }
   const goto = t.closest('[data-goto]');
@@ -729,7 +996,7 @@ document.addEventListener('click', e => {
     e.preventDefault();
     S.stockGroup = grp.dataset.group; store.set('stockGroup', S.stockGroup);
     S.io = null;
-    if (S.tab !== 'stocks') location.hash = 'stocks'; else { renderStocks(); refreshQuotes().then(() => rerender(true)); }
+    if (S.tab !== 'stocks') location.hash = 'stocks'; else { renderStocks(); refreshQuotes().then(refreshStockSparks).then(() => rerender(true)); }
     return;
   }
   const so = t.closest('[data-sort]');
@@ -737,10 +1004,18 @@ document.addEventListener('click', e => {
     const k = so.dataset.sort;
     S.sort = S.sort.key !== k ? { key: k, dir: -1 } : S.sort.dir === -1 ? { key: k, dir: 1 } : { key: null, dir: -1 };
     store.set('sort', S.sort);
-    $('#st-table').innerHTML = stocksTable();
+    $('#st-table').innerHTML = stocksBody();
+    return;
+  }
+  const vm = t.closest('[data-view-mode]');
+  if (vm) {
+    S.stockView = vm.dataset.viewMode; store.set('stockView', S.stockView);
+    renderStocks();
+    refreshStockSparks().then(() => S.tab === 'stocks' && rerender(true));
     return;
   }
   const act = t.closest('[data-act]')?.dataset.act;
+  if (act === 'expand' && S.detail) { S.detail.expand = !S.detail.expand; paintProfile(); return; }
   if (act === 'manage') { S.manage = !S.manage; renderStocks(); return; }
   if (act === 'export' || act === 'import') { S.io = S.io === act ? null : act; renderStocks(); if (S.io) $('#io-text')?.focus(); return; }
   if (act === 'close-io') { S.io = null; renderStocks(); return; }
@@ -768,7 +1043,7 @@ document.addEventListener('click', e => {
     return;
   }
   const per = t.closest('[data-period]');
-  if (per && S.detail) { S.detail.period = per.dataset.period; S.detail.data = null; store.set('period', S.detail.period); renderDetail(); loadDetailChart(); return; }
+  if (per && S.detail) { S.detail.period = per.dataset.period; S.detail.data = null; store.set('period', S.detail.period); paintChart(); loadDetailChart(); return; }
   const det = t.closest('[data-detail]');
   if (det) {
     $('#search-pop').classList.remove('open');
@@ -821,6 +1096,7 @@ $('#refresh').addEventListener('click', () => {
 (async function init() {
   try {
     S.cfg = await fetch('config.json', { cache: 'no-cache' }).then(r => r.json());
+    S.cfgStocks = new Set(Object.values(S.cfg.stocks).flat());
   } catch {
     $('#view-overview').innerHTML = '<div class="panel empty">配置加载失败。本地预览需通过 HTTP 服务打开（python3 -m http.server）</div>';
     return;

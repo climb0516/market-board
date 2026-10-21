@@ -49,6 +49,41 @@ def sectors(fs):
     return rows
 
 
+LOGO_DIR = ROOT / "logos"
+
+
+def fmp_symbol(id):
+    """东方财富代码 → FinancialModelingPrep 的代码：105.AAPL → AAPL、116.00700 → 0700.HK、1.600519 → 600519.SS。"""
+    m, c = id.split(".", 1)
+    if m in ("105", "106", "107"):
+        return c.replace("_", "-")
+    if m in ("116", "128"):
+        return str(int(c)).zfill(4) + ".HK"
+    if m == "1":
+        return c + ".SS"
+    return c + (".BJ" if c.startswith(("4", "8", "92")) else ".SZ")
+
+
+def logos(ids):
+    """重点股票的 logo 存进仓库（国内访问海外图床可能慢），已有的不重复下载。"""
+    LOGO_DIR.mkdir(exist_ok=True)
+    got, miss = 0, []
+    for id in ids:
+        f = LOGO_DIR / f"{id}.png"
+        if f.exists():
+            continue
+        try:
+            req = urllib.request.Request(f"https://financialmodelingprep.com/image-stock/{fmp_symbol(id)}.png", headers=UA)
+            data = urllib.request.urlopen(req, timeout=15).read()
+            if data[:4] != b"\x89PNG":
+                raise RuntimeError("not png")
+            f.write_bytes(data)
+            got += 1
+        except Exception:
+            miss.append(id)
+    return got, miss
+
+
 def main():
     cfg = json.loads(CONFIG.read_text("utf-8"))
     prev = {}
@@ -79,6 +114,9 @@ def main():
             sources.append({"name": f"A 股{'行业' if kind == 'industry' else '概念'}板块", "ok": True, "count": len(sec[kind]), "error": ""})
         except Exception as e:
             sources.append({"name": f"A 股{'行业' if kind == 'industry' else '概念'}板块", "ok": False, "count": 0, "error": str(e)[:160]})
+
+    got, miss = logos([i for group in cfg["stocks"].values() for i in group])
+    sources.append({"name": "股票 logo", "ok": not miss, "count": got, "error": "、".join(miss)})
 
     data = {"updated": now, "quotes": q, "sectors": sec, "sources": sources}
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), "utf-8")

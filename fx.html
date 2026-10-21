@@ -215,6 +215,11 @@
     }
 
     /* 嵌入模式：只保留子 Tab，背景透明，侧栏不吸顶（iframe 高度随内容撑开，吸顶无意义） */
+    /* 嵌入模式：背景、面板、文字、涨跌色统一成主站的，只保留本模块的强调色 */
+    :root.embed:not([data-theme="light"]) { --panel: rgba(20,22,30,0.76); --panel-solid: #12141b; --hover: rgba(255,255,255,0.045);
+      --line: rgba(255,255,255,0.07); --line-2: rgba(255,255,255,0.14); --text-1: #eef0f6; --text-2: #a0a6b8; --text-3: #676d80; --up: #f2555a; --down: #22c08a; }
+    :root.embed[data-theme="light"] { --panel: rgba(255,255,255,0.9); --panel-solid: #ffffff; --hover: rgba(20,30,70,0.04);
+      --line: rgba(20,30,70,0.08); --line-2: rgba(20,30,70,0.16); --text-1: #141827; --text-2: #4c5368; --text-3: #8b91a3; --up: #dc2626; --down: #059669; }
     .embed body { min-height: 0; background: transparent; }
     .embed body::before { display: none; }
     .embed .topbar { position: static; background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
