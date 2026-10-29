@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-28T14:55:09+08:00",
+ "updated": "2026-10-29T13:59:55+08:00",
  "oil": {
   "adjustments": [
    {
@@ -6270,27 +6270,19 @@
   },
   "crude": {
    "brent": {
-    "price": 111.14,
-    "prev": 109.41,
-    "chg_pct": 1.58,
-    "time": "2026-10-28T14:45+08:00"
+    "price": 109.96,
+    "prev": 111.64,
+    "chg_pct": -1.5,
+    "time": "2026-10-29T13:49+08:00"
    },
    "wti": {
-    "price": 101.52,
-    "prev": 99.9,
-    "chg_pct": 1.62,
-    "time": "2026-10-28T14:45+08:00"
+    "price": 101.18,
+    "prev": 102.78,
+    "chg_pct": -1.56,
+    "time": "2026-10-29T13:49+08:00"
    }
   },
   "brent_hist": [
-   [
-    "2026-02-17",
-    67.36
-   ],
-   [
-    "2026-02-18",
-    70.32
-   ],
    [
     "2026-02-19",
     71.94
@@ -7001,7 +6993,15 @@
    ],
    [
     "2026-10-27",
-    109.69
+    109.74
+   ],
+   [
+    "2026-10-28",
+    110.74
+   ],
+   [
+    "2026-10-29",
+    109.96
    ]
   ],
   "last_adj": {
@@ -7016,97 +7016,142 @@
   ],
   "next_window": {
    "date": "2026-10-29",
-   "days": 1,
+   "days": 0,
    "holiday_data": true
   },
   "estimate": {
    "base_avg": 101.41,
-   "cur_avg": 106.69,
-   "est_ton": 315,
-   "est_liter92": 0.252,
-   "est_diesel_ton": 303,
+   "cur_avg": 107.08,
+   "est_ton": 329,
+   "est_liter92": 0.263,
+   "est_diesel_ton": 316,
    "verdict": "上调",
-   "k": 1.081,
+   "k": 1.054,
    "per_liter": 0.0008,
    "per_liter_diesel": 0.000856,
    "diesel_k": 0.962,
-   "mae": 136,
-   "direction_hit": "15/15",
+   "mae": 115,
+   "direction_hit": "28/30",
    "backtest": [
     {
      "date": "2026-09-25",
-     "est": 173,
+     "est": 169,
      "actual": 395
     },
     {
      "date": "2026-09-12",
-     "est": 504,
+     "est": 491,
      "actual": 260
     },
     {
      "date": "2026-08-29",
-     "est": 310,
+     "est": 302,
      "actual": 375
     },
     {
      "date": "2026-08-15",
-     "est": -293,
+     "est": -285,
      "actual": -230
     },
     {
      "date": "2026-08-01",
-     "est": 553,
+     "est": 539,
      "actual": 685
     },
     {
      "date": "2026-07-18",
-     "est": 399,
+     "est": 389,
      "actual": 300
     },
     {
      "date": "2026-07-04",
-     "est": -789,
+     "est": -769,
      "actual": -950
     },
     {
      "date": "2026-06-19",
-     "est": -475,
+     "est": -463,
      "actual": -515
     },
     {
      "date": "2026-06-05",
-     "est": -747,
+     "est": -728,
      "actual": -525
     },
     {
      "date": "2026-05-22",
-     "est": 98,
+     "est": 96,
      "actual": 75
     },
     {
      "date": "2026-05-09",
-     "est": 529,
+     "est": 515,
      "actual": 320
     },
     {
      "date": "2026-04-22",
-     "est": -391,
+     "est": -381,
      "actual": -555
     },
     {
      "date": "2026-04-08",
-     "est": 126,
+     "est": 122,
      "actual": 420
     },
     {
      "date": "2026-03-24",
-     "est": 1075,
+     "est": 1047,
      "actual": 1160
     },
     {
      "date": "2026-03-10",
-     "est": 709,
+     "est": 808,
      "actual": 695
+    },
+    {
+     "date": "2026-02-25",
+     "est": 106,
+     "actual": 175
+    },
+    {
+     "date": "2026-02-04",
+     "est": 171,
+     "actual": 205
+    },
+    {
+     "date": "2026-01-21",
+     "est": 113,
+     "actual": 85
+    },
+    {
+     "date": "2025-12-23",
+     "est": -114,
+     "actual": -170
+    },
+    {
+     "date": "2025-12-09",
+     "est": -28,
+     "actual": -55
+    },
+    {
+     "date": "2025-11-25",
+     "est": -53,
+     "actual": -70
+    },
+    {
+     "date": "2025-11-11",
+     "est": 60,
+     "actual": 125
+    },
+    {
+     "date": "2025-10-28",
+     "est": -133,
+     "actual": -265
+    },
+    {
+     "date": "2025-10-14",
+     "est": -14,
+     "actual": -75
     }
    ]
   },
@@ -7120,256 +7165,248 @@
  "gold": {
   "quotes": {
    "xau": {
-    "price": 4030.07,
-    "prev": 4060.33,
-    "chg_pct": -0.75,
-    "time": "2026-10-28T14:55+08:00"
+    "price": 4024.38,
+    "prev": 4067.46,
+    "chg_pct": -1.06,
+    "time": "2026-10-29T13:59+08:00"
    },
    "gc": {
-    "price": 4044.0,
-    "prev": 4074.6,
-    "chg_pct": -0.75,
-    "time": "2026-10-28T14:45+08:00"
+    "price": 4045.6,
+    "prev": 4051.6,
+    "chg_pct": -0.15,
+    "time": "2026-10-29T13:49+08:00"
    },
    "au9999": {
-    "price": 865.8,
-    "prev": 860.31,
-    "chg_pct": 0.64,
-    "time": "2026-10-28T14:55+08:00"
+    "price": 863.9,
+    "prev": 868.99,
+    "chg_pct": -0.59,
+    "time": "2026-10-29T13:59+08:00"
    },
    "autd": {
-    "price": 865.57,
-    "prev": 860.49,
-    "chg_pct": 0.49,
-    "time": "2026-10-28T14:55+08:00"
+    "price": 863.5,
+    "prev": 866.91,
+    "chg_pct": -0.46,
+    "time": "2026-10-29T13:59+08:00"
    },
    "usdcnh": {
-    "price": 6.6658,
-    "prev": 6.6647,
-    "chg_pct": 0.02,
-    "time": "2026-10-28T14:55+08:00"
+    "price": 6.6586,
+    "prev": 6.6615,
+    "chg_pct": -0.04,
+    "time": "2026-10-29T13:59+08:00"
    }
   },
-  "xau_cny_g": 863.69,
+  "xau_cny_g": 861.53,
   "brands": [
    {
     "name": "周生生",
-    "gold": 1218.0,
-    "platinum": 594.0,
+    "gold": 1220.0,
+    "platinum": 591.0,
     "bar": 1073.0,
-    "date": "2026-10-28",
-    "gold_chg": 13.0,
-    "premium": 40.7
+    "date": "2026-10-29",
+    "gold_chg": 2.0,
+    "premium": 41.2
    },
    {
     "name": "潮宏基",
     "gold": 1217.0,
-    "platinum": 594.0,
+    "platinum": 591.0,
     "bar": 1073.0,
-    "date": "2026-10-28",
-    "gold_chg": 15.0,
-    "premium": 40.6
+    "date": "2026-10-29",
+    "gold_chg": null,
+    "premium": 40.9
    },
    {
     "name": "金至尊",
     "gold": 1217.0,
-    "platinum": 594.0,
+    "platinum": 591.0,
     "bar": 1073.0,
-    "date": "2026-10-28",
-    "gold_chg": 15.0,
-    "premium": 40.6
+    "date": "2026-10-29",
+    "gold_chg": null,
+    "premium": 40.9
    },
    {
     "name": "谢瑞麟",
     "gold": 1217.0,
     "platinum": null,
     "bar": 1073.0,
-    "date": "2026-10-28",
-    "premium": 40.6
+    "date": "2026-10-29",
+    "premium": 40.9
    },
    {
     "name": "周大福",
     "gold": 1217.0,
-    "platinum": 594.0,
+    "platinum": 591.0,
     "bar": 1073.0,
-    "date": "2026-10-28",
-    "gold_chg": 15.0,
-    "premium": 40.6
+    "date": "2026-10-29",
+    "gold_chg": null,
+    "premium": 40.9
    },
    {
     "name": "周大生",
     "bar": null,
     "gold": 1217.0,
     "platinum": 594.0,
-    "gold_chg": 15.0,
-    "date": "2026-10-28",
-    "premium": 40.6
-   },
-   {
-    "name": "老凤祥",
-    "gold": 1216.0,
-    "platinum": 600.0,
-    "bar": 1074.0,
-    "date": "2026-10-28",
-    "gold_chg": 11.0,
-    "premium": 40.4
+    "gold_chg": null,
+    "date": "2026-10-29",
+    "premium": 40.9
    },
    {
     "name": "菜百首饰",
     "gold": 1215.0,
     "platinum": 545.0,
     "bar": 1030.0,
-    "date": "2026-10-28",
-    "gold_chg": 10.0,
-    "premium": 40.3
-   },
-   {
-    "name": "老庙黄金",
-    "gold": 1215.0,
-    "platinum": 700.0,
-    "bar": 1040.0,
-    "date": "2026-10-28",
-    "gold_chg": 14.0,
-    "premium": 40.3
+    "date": "2026-10-29",
+    "gold_chg": null,
+    "premium": 40.6
    },
    {
     "name": "六福珠宝",
     "gold": 1215.0,
-    "platinum": 594.0,
+    "platinum": 591.0,
     "bar": 1073.0,
-    "date": "2026-10-28",
-    "gold_chg": 15.0,
-    "premium": 40.3
+    "date": "2026-10-29",
+    "gold_chg": null,
+    "premium": 40.6
+   },
+   {
+    "name": "老凤祥",
+    "gold": 1213.0,
+    "platinum": 600.0,
+    "bar": 1071.0,
+    "date": "2026-10-29",
+    "gold_chg": -3.0,
+    "premium": 40.4
    },
    {
     "name": "中国黄金",
     "gold": 1213.0,
     "platinum": 545.0,
-    "bar": 885.4,
-    "date": "2026-10-28",
-    "premium": 40.1
+    "bar": 883.9,
+    "date": "2026-10-29",
+    "premium": 40.4
    },
    {
     "name": "周六福",
     "gold": 1212.0,
-    "platinum": 614.0,
+    "platinum": 611.0,
     "bar": 1073.0,
-    "date": "2026-10-28",
-    "gold_chg": 15.0,
-    "premium": 40.0
+    "date": "2026-10-29",
+    "gold_chg": null,
+    "premium": 40.3
    },
    {
     "name": "金大福",
     "bar": null,
     "gold": 1210.0,
-    "platinum": 554.0,
-    "gold_chg": 15.0,
-    "date": "2026-10-28",
+    "platinum": 551.0,
+    "gold_chg": null,
+    "date": "2026-10-29",
+    "premium": 40.1
+   },
+   {
+    "name": "老庙黄金",
+    "gold": 1208.0,
+    "platinum": 591.0,
+    "bar": 1033.0,
+    "date": "2026-10-29",
+    "gold_chg": -2.0,
     "premium": 39.8
    },
    {
     "name": "深圳水贝（批发参考）",
     "bar": null,
     "gold": 910.0,
-    "platinum": 388.0,
-    "gold_chg": 7.0,
-    "date": "2026-10-28",
-    "premium": 5.1
+    "platinum": 386.0,
+    "gold_chg": null,
+    "date": "2026-10-29",
+    "premium": 5.3
    }
   ],
   "banks": [
    {
-    "name": "农行传世之宝金条",
-    "price": 887.0,
+    "name": "工商银行如意金条",
+    "price": 884.76,
     "premium": 2.4
    },
    {
+    "name": "农行传世之宝金条",
+    "price": 886.05,
+    "premium": 2.6
+   },
+   {
     "name": "建设银行龙鼎金条",
-    "price": 887.6,
-    "premium": 2.5
+    "price": 888.3,
+    "premium": 2.8
    },
    {
     "name": "中国银行金条",
-    "price": 887.99,
-    "premium": 2.6
-   },
-   {
-    "name": "工商银行如意金条",
-    "price": 888.57,
-    "premium": 2.6
-   },
-   {
-    "name": "和谐平安金条",
-    "price": 890.8,
+    "price": 888.7,
     "premium": 2.9
    },
    {
+    "name": "和谐平安金条",
+    "price": 891.7,
+    "premium": 3.2
+   },
+   {
     "name": "浦发银行投资金条",
-    "price": 897.0,
-    "premium": 3.6
+    "price": 899.0,
+    "premium": 4.1
    }
   ],
   "recycle": [
    {
     "name": "24K金回收",
-    "price": 855.0,
-    "date": "2026-10-28"
-   },
-   {
-    "name": "14K金回收",
-    "price": 494.0,
-    "date": "2026-10-28"
+    "price": 856.0,
+    "date": "2026-10-29"
    },
    {
     "name": "18K金回收",
-    "price": 638.0,
-    "date": "2026-10-28"
+    "price": 639.0,
+    "date": "2026-10-29"
+   },
+   {
+    "name": "14K金回收",
+    "price": 495.0,
+    "date": "2026-10-29"
    },
    {
     "name": "pd950钯金回收",
-    "price": 188.0,
-    "date": "2026-10-28"
+    "price": 185.0,
+    "date": "2026-10-29"
    },
    {
     "name": "pd990钯金回收",
-    "price": 196.0,
-    "date": "2026-10-28"
+    "price": 193.0,
+    "date": "2026-10-29"
    },
    {
     "name": "pd999钯金回收",
-    "price": 198.0,
-    "date": "2026-10-28"
+    "price": 195.0,
+    "date": "2026-10-29"
    },
    {
     "name": "黄金回收",
     "price": 862.0,
-    "date": "2026-10-28"
+    "date": "2026-10-29"
    },
    {
     "name": "925银条回收",
-    "price": 9.99,
-    "date": "2026-10-28"
+    "price": 9.88,
+    "date": "2026-10-29"
    },
    {
     "name": "足银回收",
-    "price": 11.6,
-    "date": "2026-10-28"
+    "price": 11.41,
+    "date": "2026-10-29"
    },
    {
     "name": "24K金回收",
-    "price": 847.0,
-    "date": "2026-10-27"
+    "price": 855.0,
+    "date": "2026-10-28"
    }
   ],
   "au_hist": [
-   [
-    "2025-09-22",
-    839.5
-   ],
-   [
-    "2025-09-23",
-    850.65
-   ],
    [
     "2025-09-24",
     856.63
@@ -8408,18 +8445,18 @@
    ],
    [
     "2026-10-27",
-    861.5
+    860.31
+   ],
+   [
+    "2026-10-28",
+    868.99
+   ],
+   [
+    "2026-10-29",
+    863.9
    ]
   ],
   "xau_hist": [
-   [
-    "2025-09-22",
-    3746.92
-   ],
-   [
-    "2025-09-23",
-    3764.14
-   ],
    [
     "2025-09-24",
     3736.14
@@ -9546,7 +9583,15 @@
    ],
    [
     "2026-10-27",
-    4006.88
+    4060.33
+   ],
+   [
+    "2026-10-28",
+    4067.46
+   ],
+   [
+    "2026-10-29",
+    4024.45
    ]
   ]
  },
@@ -9577,9 +9622,9 @@
   },
   {
    "name": "布伦特日线",
-   "ok": false,
-   "error": "RemoteDisconnected: Remote end closed connection without response",
-   "count": 0
+   "ok": true,
+   "error": "",
+   "count": 397
   },
   {
    "name": "品牌 / 银行金条 / 回收价（汇率表）",
@@ -9595,15 +9640,15 @@
   },
   {
    "name": "黄金9999 日线",
-   "ok": false,
-   "error": "RemoteDisconnected: Remote end closed connection without response",
-   "count": 0
+   "ok": true,
+   "error": "",
+   "count": 262
   },
   {
    "name": "伦敦金日线",
-   "ok": false,
-   "error": "RemoteDisconnected: Remote end closed connection without response",
-   "count": 0
+   "ok": true,
+   "error": "",
+   "count": 284
   }
  ]
 }
