@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-08T08:46:32+08:00",
+ "updated": "2026-11-09T07:48:09+08:00",
  "oil": {
   "adjustments": [
    {
@@ -6270,16 +6270,16 @@
   },
   "crude": {
    "brent": {
-    "price": 97.97,
-    "prev": 98.29,
-    "chg_pct": -0.33,
-    "time": "2026-11-07T07:00+08:00"
+    "price": 97.68,
+    "prev": 97.97,
+    "chg_pct": -0.65,
+    "time": "2026-11-09T07:38+08:00"
    },
    "wti": {
-    "price": 90.34,
-    "prev": 90.52,
-    "chg_pct": -0.2,
-    "time": "2026-11-07T06:00+08:00"
+    "price": 90.47,
+    "prev": 90.83,
+    "chg_pct": -0.4,
+    "time": "2026-11-09T07:38+08:00"
    }
   },
   "brent_hist": [
@@ -7014,142 +7014,97 @@
   "windows_passed": [],
   "next_window": {
    "date": "2026-11-13",
-   "days": 5,
+   "days": 4,
    "holiday_data": true
   },
   "estimate": {
    "base_avg": 111.43,
    "cur_avg": 100.1,
-   "est_ton": -657,
-   "est_liter92": -0.526,
-   "est_diesel_ton": -632,
+   "est_ton": -691,
+   "est_liter92": -0.553,
+   "est_diesel_ton": -664,
    "verdict": "下调",
-   "k": 1.05,
+   "k": 1.104,
    "per_liter": 0.0008,
    "per_liter_diesel": 0.000856,
    "diesel_k": 0.962,
-   "mae": 114,
-   "direction_hit": "28/30",
+   "mae": 141,
+   "direction_hit": "15/15",
    "backtest": [
     {
      "date": "2026-10-30",
-     "est": 352,
+     "est": 370,
      "actual": 345
     },
     {
      "date": "2026-09-25",
-     "est": 169,
+     "est": 177,
      "actual": 395
     },
     {
      "date": "2026-09-12",
-     "est": 490,
+     "est": 515,
      "actual": 260
     },
     {
      "date": "2026-08-29",
-     "est": 301,
+     "est": 317,
      "actual": 375
     },
     {
      "date": "2026-08-15",
-     "est": -285,
+     "est": -299,
      "actual": -230
     },
     {
      "date": "2026-08-01",
-     "est": 538,
+     "est": 565,
      "actual": 685
     },
     {
      "date": "2026-07-18",
-     "est": 388,
+     "est": 408,
      "actual": 300
     },
     {
      "date": "2026-07-04",
-     "est": -767,
+     "est": -806,
      "actual": -950
     },
     {
      "date": "2026-06-19",
-     "est": -462,
+     "est": -486,
      "actual": -515
     },
     {
      "date": "2026-06-05",
-     "est": -726,
+     "est": -763,
      "actual": -525
     },
     {
      "date": "2026-05-22",
-     "est": 96,
+     "est": 100,
      "actual": 75
     },
     {
      "date": "2026-05-09",
-     "est": 514,
+     "est": 540,
      "actual": 320
     },
     {
      "date": "2026-04-22",
-     "est": -380,
+     "est": -399,
      "actual": -555
     },
     {
      "date": "2026-04-08",
-     "est": 122,
+     "est": 128,
      "actual": 420
     },
     {
      "date": "2026-03-24",
-     "est": 1045,
+     "est": 1007,
      "actual": 1160
-    },
-    {
-     "date": "2026-03-10",
-     "est": 806,
-     "actual": 695
-    },
-    {
-     "date": "2026-02-25",
-     "est": 106,
-     "actual": 175
-    },
-    {
-     "date": "2026-02-04",
-     "est": 171,
-     "actual": 205
-    },
-    {
-     "date": "2026-01-21",
-     "est": 112,
-     "actual": 85
-    },
-    {
-     "date": "2025-12-23",
-     "est": -114,
-     "actual": -170
-    },
-    {
-     "date": "2025-12-09",
-     "est": -28,
-     "actual": -55
-    },
-    {
-     "date": "2025-11-25",
-     "est": -52,
-     "actual": -70
-    },
-    {
-     "date": "2025-11-11",
-     "est": 60,
-     "actual": 125
-    },
-    {
-     "date": "2025-10-28",
-     "est": -133,
-     "actual": -265
     }
    ]
   },
@@ -7163,16 +7118,16 @@
  "gold": {
   "quotes": {
    "xau": {
-    "price": 4080.48,
-    "prev": 4089.12,
-    "chg_pct": -0.21,
-    "time": "2026-11-07T06:44+08:00"
+    "price": 4061.87,
+    "prev": 4080.48,
+    "chg_pct": -0.46,
+    "time": "2026-11-09T07:48+08:00"
    },
    "gc": {
-    "price": 4079.5,
-    "prev": 4113.5,
-    "chg_pct": -0.83,
-    "time": "2026-11-07T06:00+08:00"
+    "price": 4072.1,
+    "prev": 4074.9,
+    "chg_pct": -0.07,
+    "time": "2026-11-09T07:38+08:00"
    },
    "au9999": {
     "price": 874.0,
@@ -7187,20 +7142,20 @@
     "time": "2026-11-07T02:29+08:00"
    },
    "usdcnh": {
-    "price": 6.6738,
-    "prev": 6.6652,
-    "chg_pct": 0.13,
-    "time": "2026-11-07T05:59+08:00"
+    "price": 6.6714,
+    "prev": 6.6738,
+    "chg_pct": -0.04,
+    "time": "2026-11-09T07:48+08:00"
    }
   },
-  "xau_cny_g": 875.54,
+  "xau_cny_g": 871.23,
   "brands": [
    {
     "name": "中国黄金",
     "gold": 1223.0,
     "platinum": 535.0,
     "bar": 990.6,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "premium": 39.9
    },
    {
@@ -7208,7 +7163,7 @@
     "gold": 1223.0,
     "platinum": 589.0,
     "bar": 1083.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -3.0,
     "premium": 39.9
    },
@@ -7226,7 +7181,7 @@
     "gold": 1221.0,
     "platinum": 589.0,
     "bar": 1077.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -8.0,
     "premium": 39.7
    },
@@ -7235,7 +7190,7 @@
     "gold": 1221.0,
     "platinum": 589.0,
     "bar": 1077.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -8.0,
     "premium": 39.7
    },
@@ -7244,7 +7199,7 @@
     "gold": 1221.0,
     "platinum": null,
     "bar": 1083.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "premium": 39.7
    },
    {
@@ -7252,7 +7207,7 @@
     "gold": 1221.0,
     "platinum": 589.0,
     "bar": 1077.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -8.0,
     "premium": 39.7
    },
@@ -7270,7 +7225,7 @@
     "gold": 1220.0,
     "platinum": 600.0,
     "bar": 1077.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -5.0,
     "premium": 39.6
    },
@@ -7279,7 +7234,7 @@
     "gold": 1219.0,
     "platinum": 589.0,
     "bar": 1077.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -8.0,
     "premium": 39.5
    },
@@ -7288,7 +7243,7 @@
     "gold": 1217.0,
     "platinum": 589.0,
     "bar": 1042.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -5.0,
     "premium": 39.2
    },
@@ -7297,7 +7252,7 @@
     "gold": 1216.0,
     "platinum": 609.0,
     "bar": 1077.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": -8.0,
     "premium": 39.1
    },
@@ -7306,7 +7261,7 @@
     "gold": 1215.0,
     "platinum": 535.0,
     "bar": 1032.0,
-    "date": "2026-11-08",
+    "date": "2026-11-09",
     "gold_chg": null,
     "premium": 39.0
    },
@@ -9620,9 +9575,9 @@
   },
   {
    "name": "布伦特日线",
-   "ok": true,
-   "error": "",
-   "count": 397
+   "ok": false,
+   "error": "RemoteDisconnected: Remote end closed connection without response",
+   "count": 0
   },
   {
    "name": "品牌 / 银行金条 / 回收价（汇率表）",
@@ -9638,15 +9593,15 @@
   },
   {
    "name": "黄金9999 日线",
-   "ok": true,
-   "error": "",
-   "count": 264
+   "ok": false,
+   "error": "RemoteDisconnected: Remote end closed connection without response",
+   "count": 0
   },
   {
    "name": "伦敦金日线",
-   "ok": true,
-   "error": "",
-   "count": 282
+   "ok": false,
+   "error": "RemoteDisconnected: Remote end closed connection without response",
+   "count": 0
   }
  ]
 }
